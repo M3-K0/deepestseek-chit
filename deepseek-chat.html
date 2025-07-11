@@ -506,8 +506,8 @@
         <button class="settings-btn" onclick="toggleSettings()">⚙️</button>
         <h1>🤖 DeepSeek R1 Custom</h1>
         <div style="display: flex; gap: 8px;">
-            <button class="clear-btn" onclick="setupOneDrive()" title="Setup OneDrive">☁️</button>
-            <button class="clear-btn" onclick="loadConversation()" title="Load Conversation">📁</button>
+            <button class="clear-btn" onclick="exportConversation()" title="Export to OneDrive">💾</button>
+            <button class="clear-btn" onclick="importConversation()" title="Import from OneDrive">📁</button>
             <button class="clear-btn" id="changeApiKeyBtn" onclick="changeApiKey()" style="display: none;" title="Change API Key">🔑</button>
             <button class="clear-btn" onclick="clearChat()">🗑️</button>
         </div>
@@ -635,8 +635,6 @@
         let isConnected = false;
         let isThinking = false;
         let conversationHistory = [];
-        let memoryContext = '';
-        let oneDriveHandle = null;
         let currentConversationId = null;
         let contextLimit = 10; // Only send last 10 messages to API
 
@@ -710,52 +708,18 @@
             }
         }
 
-        // OneDrive and conversation persistence
-        async function setupOneDrive() {
-            if (!window.showDirectoryPicker) {
-                alert('Your browser doesn\'t support folder access. Use Chrome or Edge for OneDrive sync.');
+        // Export conversation for OneDrive
+        function exportConversation() {
+            if (conversationHistory.length === 0) {
+                alert('No conversation to export');
                 return;
             }
             
-            try {
-                oneDriveHandle = await window.showDirectoryPicker({
-                    mode: 'readwrite',
-                    startIn: 'documents'
-                });
-                
-                localStorage.setItem('onedrive-setup', 'true');
-                
-                const status = document.getElementById('status');
-                const originalText = status.innerHTML;
-                status.innerHTML = '<span class="connected">✓ OneDrive folder selected</span>';
-                setTimeout(() => {
-                    status.innerHTML = originalText;
-                }, 2000);
-                
-                // Create DeepSeek folder if it doesn't exist
-                try {
-                    await oneDriveHandle.getDirectoryHandle('DeepSeek-Conversations', { create: true });
-                } catch (error) {
-                    console.error('Error creating DeepSeek folder:', error);
-                }
-                
-            } catch (error) {
-                console.error('Error setting up OneDrive:', error);
-            }
-        }
-
-        async function saveConversation() {
-            if (!oneDriveHandle || conversationHistory.length === 0) return;
-            
-            if (!currentConversationId) {
-                currentConversationId = 'conversation-' + Date.now();
-            }
-            
             const conversationData = {
-                id: currentConversationId,
+                id: currentConversationId || 'conversation-' + Date.now(),
                 timestamp: new Date().toISOString(),
                 messages: conversationHistory,
-                memoryContext: memoryContext,
+                memoryContext: document.getElementById('memoryContext').value,
                 settings: {
                     model: document.getElementById('model').value,
                     temperature: document.getElementById('temperature').value,
@@ -764,72 +728,95 @@
                 }
             };
             
-            try {
-                const deepseekFolder = await oneDriveHandle.getDirectoryHandle('DeepSeek-Conversations', { create: true });
-                const fileHandle = await deepseekFolder.getFileHandle(currentConversationId + '.json', { create: true });
-                const writable = await fileHandle.createWritable();
-                await writable.write(JSON.stringify(conversationData, null, 2));
-                await writable.close();
-                
-                console.log('Conversation saved to OneDrive');
-            } catch (error) {
-                console.error('Error saving conversation:', error);
+            const blob = new Blob([JSON.stringify(conversationData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `deepseek-conversation-${new Date().toISOString().split('T')[0]}-${Date.now()}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            const status = document.getElementById('status');
+            const originalText = status.innerHTML;
+            status.innerHTML = '<span class="connected">✓ Conversation exported! Save to OneDrive</span>';
+            setTimeout(() => {
+                status.innerHTML = originalText;
+            }, 3000);
+        }
+
+        // Load conversation from browser storage on page load
+        function loadAutoSavedConversation() {
+            const saved = localStorage.getItem('deepseek-current-conversation');
+            if (saved) {
+                try {
+                    const data = JSON.parse(saved);
+                    if (data.messages && data.messages.length > 0) {
+                        // Ask user if they want to restore the conversation
+                        if (confirm('Restore previous conversation?')) {
+                            conversationHistory = data.messages;
+                            currentConversationId = data.id;
+                            if (data.memoryContext) {
+                                document.getElementById('memoryContext').value = data.memoryContext;
+                            }
+                            rebuildChatDisplay();
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error loading auto-saved conversation:', error);
+                }
             }
         }
 
-        async function loadConversation() {
-            if (!oneDriveHandle) {
-                alert('Please set up OneDrive folder first');
-                return;
-            }
-            
-            try {
-                const deepseekFolder = await oneDriveHandle.getDirectoryHandle('DeepSeek-Conversations');
-                const files = [];
-                
-                for await (const [name, handle] of deepseekFolder.entries()) {
-                    if (name.endsWith('.json')) {
-                        files.push({ name, handle });
-                    }
-                }
-                
-                if (files.length === 0) {
-                    alert('No saved conversations found');
-                    return;
-                }
-                
-                // Simple file picker (could be enhanced with a proper modal)
-                const fileNames = files.map(f => f.name.replace('.json', ''));
-                const selected = prompt('Select conversation:\n' + fileNames.join('\n'));
-                
-                if (selected) {
-                    const selectedFile = files.find(f => f.name === selected + '.json');
-                    if (selectedFile) {
-                        const file = await selectedFile.handle.getFile();
-                        const data = JSON.parse(await file.text());
-                        
-                        // Load conversation
-                        conversationHistory = data.messages || [];
-                        memoryContext = data.memoryContext || '';
-                        currentConversationId = data.id;
-                        
-                        // Load settings
-                        if (data.settings) {
-                            document.getElementById('model').value = data.settings.model || 'deepseek-reasoner';
-                            document.getElementById('temperature').value = data.settings.temperature || '0.7';
-                            document.getElementById('basePrompt').value = data.settings.basePrompt || '';
-                            document.getElementById('personalityPrompt').value = data.settings.personalityPrompt || '';
-                            updateTempLabel();
+        function importConversation() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = function(event) {
+                const file = event.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        try {
+                            const data = JSON.parse(e.target.result);
+                            
+                            // Load conversation
+                            conversationHistory = data.messages || [];
+                            currentConversationId = data.id;
+                            
+                            // Load memory context
+                            if (data.memoryContext) {
+                                document.getElementById('memoryContext').value = data.memoryContext;
+                            }
+                            
+                            // Load settings
+                            if (data.settings) {
+                                document.getElementById('model').value = data.settings.model || 'deepseek-reasoner';
+                                document.getElementById('temperature').value = data.settings.temperature || '0.7';
+                                document.getElementById('basePrompt').value = data.settings.basePrompt || '';
+                                document.getElementById('personalityPrompt').value = data.settings.personalityPrompt || '';
+                                updateTempLabel();
+                            }
+                            
+                            // Rebuild chat display
+                            rebuildChatDisplay();
+                            
+                            const status = document.getElementById('status');
+                            const originalText = status.innerHTML;
+                            status.innerHTML = '<span class="connected">✓ Conversation imported successfully</span>';
+                            setTimeout(() => {
+                                status.innerHTML = originalText;
+                            }, 3000);
+                            
+                        } catch (error) {
+                            alert('Error importing conversation: ' + error.message);
                         }
-                        
-                        // Rebuild chat display
-                        rebuildChatDisplay();
-                    }
+                    };
+                    reader.readAsText(file);
                 }
-            } catch (error) {
-                console.error('Error loading conversation:', error);
-                alert('Error loading conversation: ' + error.message);
-            }
+            };
+            input.click();
         }
 
         function rebuildChatDisplay() {
@@ -841,12 +828,18 @@
             });
         }
 
-        // Auto-save conversation every 30 seconds
+        // Auto-export conversation to browser storage
         setInterval(() => {
-            if (oneDriveHandle && conversationHistory.length > 0) {
-                saveConversation();
+            if (conversationHistory.length > 0) {
+                const conversationData = {
+                    id: currentConversationId || 'conversation-' + Date.now(),
+                    timestamp: new Date().toISOString(),
+                    messages: conversationHistory,
+                    memoryContext: document.getElementById('memoryContext').value
+                };
+                localStorage.setItem('deepseek-current-conversation', JSON.stringify(conversationData));
             }
-        }, 30000);
+        }, 10000); // Auto-save every 10 seconds to browser storage
 
         function copyMessage(content) {
             navigator.clipboard.writeText(content).then(() => {
@@ -1408,6 +1401,7 @@
         window.addEventListener('load', function() {
             loadAutoSavedConfig();
             loadSavedApiKey();
+            loadAutoSavedConversation();
             
             // Auto-save on changes
             ['model', 'temperature', 'maxTokens', 'topP', 'freqPenalty', 'presPenalty', 'basePrompt', 'personalityPrompt', 'memoryContext'].forEach(id => {
