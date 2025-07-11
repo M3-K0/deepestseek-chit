@@ -286,6 +286,71 @@
             font-style: italic;
         }
 
+        .message-wrapper {
+            display: flex;
+            flex-direction: column;
+            max-width: 85%;
+            margin-bottom: 12px;
+        }
+
+        .message-wrapper.user {
+            margin-left: auto;
+            align-items: flex-end;
+        }
+
+        .message-wrapper.bot {
+            margin-right: auto;
+            align-items: flex-start;
+        }
+
+        .message-actions {
+            display: flex;
+            gap: 6px;
+            margin-top: 6px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .message-wrapper:hover .message-actions {
+            opacity: 1;
+        }
+
+        .action-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            color: #ccc;
+            cursor: pointer;
+            font-size: 12px;
+            padding: 4px 8px;
+            transition: all 0.2s;
+        }
+
+        .action-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+
+        .retry-btn:hover {
+            background: #6C63FF;
+            border-color: #6C63FF;
+        }
+
+        .copy-btn:hover {
+            background: #4CAF50;
+            border-color: #4CAF50;
+        }
+
+        .edit-btn:hover {
+            background: #FF9800;
+            border-color: #FF9800;
+        }
+
+        .delete-btn:hover {
+            background: #f44336;
+            border-color: #f44336;
+        }
+
         .input-container {
             padding: 16px 20px;
             background: #2D2D44;
@@ -382,9 +447,16 @@
                 grid-template-columns: 1fr;
             }
             
-            .message {
+            .message-wrapper {
                 max-width: 90%;
+            }
+            
+            .message {
                 font-size: 15px;
+            }
+            
+            .message-actions {
+                opacity: 1;
             }
             
             .input-container {
@@ -427,10 +499,13 @@
     <div class="header">
         <button class="settings-btn" onclick="toggleSettings()">⚙️</button>
         <h1>🤖 DeepSeek R1 Custom</h1>
-        <button class="clear-btn" onclick="clearChat()">🗑️</button>
+        <div style="display: flex; gap: 8px;">
+            <button class="clear-btn" id="changeApiKeyBtn" onclick="changeApiKey()" style="display: none;" title="Change API Key">🔑</button>
+            <button class="clear-btn" onclick="clearChat()">🗑️</button>
+        </div>
     </div>
 
-    <div class="api-setup">
+    <div class="api-setup" id="apiSetup">
         <input type="password" id="apiKey" placeholder="Enter your DeepSeek API key..." />
         <button onclick="setApiKey()">Set Key</button>
     </div>
@@ -514,8 +589,14 @@
     <div class="status" id="status">Enter your API key to start chatting</div>
 
     <div class="chat-container" id="chatContainer">
-        <div class="bot-message">
-            👋 Hi! I'm DeepSeek R1 with full customization. Set your API key, configure your settings, and let's chat!
+        <div class="message-wrapper bot">
+            <div class="message bot-message">
+                👋 Hi! I'm DeepSeek R1 with full customization. Set your API key, configure your settings, and let's chat!
+            </div>
+            <div class="message-actions">
+                <button class="action-btn copy-btn" onclick="copyMessage('👋 Hi! I\'m DeepSeek R1 with full customization. Set your API key, configure your settings, and let\'s chat!')" title="Copy message">📋</button>
+                <button class="action-btn delete-btn" onclick="deleteMessage(this.closest('.message-wrapper'))" title="Delete message">🗑️</button>
+            </div>
         </div>
     </div>
 
@@ -608,49 +689,295 @@
             }
         }
 
+        function copyMessage(content) {
+            navigator.clipboard.writeText(content).then(() => {
+                // Show brief feedback
+                const status = document.getElementById('status');
+                const originalText = status.innerHTML;
+                status.innerHTML = '<span class="connected">✓ Copied to clipboard</span>';
+                setTimeout(() => {
+                    status.innerHTML = originalText;
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+                // Fallback for older browsers
+                const textArea = document.createElement('textarea');
+                textArea.value = content;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+            });
+        }
+
+        function deleteMessage(messageWrapper) {
+            if (confirm('Delete this message?')) {
+                const messageDiv = messageWrapper.querySelector('.message');
+                const content = messageDiv.textContent;
+                
+                // Remove from conversation history
+                conversationHistory = conversationHistory.filter(msg => msg.content !== content);
+                
+                // Remove from DOM
+                messageWrapper.remove();
+            }
+        }
+
+        function editMessage(messageDiv, originalContent) {
+            const currentContent = messageDiv.textContent;
+            const newContent = prompt('Edit message:', currentContent);
+            
+            if (newContent !== null && newContent.trim() !== '') {
+                // Update the message display
+                messageDiv.innerHTML = newContent.replace(/\n/g, '<br>');
+                
+                // Update conversation history
+                const msgIndex = conversationHistory.findIndex(msg => msg.content === originalContent);
+                if (msgIndex !== -1) {
+                    conversationHistory[msgIndex].content = newContent;
+                }
+            }
+        }
+
+        async function regenerateResponse(messageWrapper) {
+            if (isThinking) return;
+            
+            const messageDiv = messageWrapper.querySelector('.message');
+            const originalContent = messageDiv.textContent;
+            
+            // Remove this AI response from conversation history
+            conversationHistory = conversationHistory.filter(msg => msg.content !== originalContent);
+            
+            // Remove the message wrapper
+            messageWrapper.remove();
+            
+            // Get the last user message to regenerate response
+            const lastUserMsg = conversationHistory[conversationHistory.length - 1];
+            if (lastUserMsg && lastUserMsg.role === 'user') {
+                // Temporarily remove the last user message from history so sendMessage logic works
+                const userContent = lastUserMsg.content;
+                conversationHistory.pop();
+                
+                // Show thinking indicator
+                isThinking = true;
+                document.getElementById('sendButton').disabled = true;
+                const thinkingDiv = addMessage('', false, true);
+                
+                try {
+                    // Build messages array like in sendMessage
+                    const messages = [];
+                    
+                    const basePrompt = document.getElementById('basePrompt').value.trim();
+                    const personalityPrompt = document.getElementById('personalityPrompt').value.trim();
+                    
+                    if (basePrompt || personalityPrompt) {
+                        let combinedPrompt = '';
+                        if (basePrompt) {
+                            combinedPrompt += basePrompt;
+                        }
+                        if (personalityPrompt) {
+                            if (combinedPrompt) combinedPrompt += '\n\n';
+                            combinedPrompt += 'Personality and Communication Style: ' + personalityPrompt;
+                        }
+                        
+                        messages.push({
+                            role: 'system',
+                            content: combinedPrompt
+                        });
+                    }
+                    
+                    // Add conversation history
+                    messages.push(...conversationHistory);
+                    
+                    // Add the user message
+                    messages.push({
+                        role: 'user',
+                        content: userContent
+                    });
+
+                    const requestBody = {
+                        model: document.getElementById('model').value,
+                        messages: messages,
+                        max_tokens: parseInt(document.getElementById('maxTokens').value),
+                        temperature: parseFloat(document.getElementById('temperature').value),
+                        top_p: parseFloat(document.getElementById('topP').value),
+                        frequency_penalty: parseFloat(document.getElementById('freqPenalty').value),
+                        presence_penalty: parseFloat(document.getElementById('presPenalty').value)
+                    };
+
+                    const response = await fetch('https://api.deepseek.com/chat/completions', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${apiKey}`
+                        },
+                        body: JSON.stringify(requestBody)
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    const data = await response.json();
+                    thinkingDiv.remove();
+                    
+                    // Add the user message back to history
+                    conversationHistory.push({
+                        role: 'user',
+                        content: userContent
+                    });
+                    
+                    if (data.choices && data.choices[0] && data.choices[0].message) {
+                        const content = data.choices[0].message.content;
+                        addMessage(content, false);
+                    } else {
+                        addMessage('Sorry, I received an unexpected response format.', false);
+                    }
+                    
+                } catch (error) {
+                    console.error('Error:', error);
+                    thinkingDiv.remove();
+                    addMessage(`Error: ${error.message}. Please check your API key and try again.`, false);
+                }
+                
+                isThinking = false;
+                document.getElementById('sendButton').disabled = false;
+            }
+        }
+
         function setApiKey() {
             const keyInput = document.getElementById('apiKey');
             apiKey = keyInput.value.trim();
             
             if (apiKey) {
+                // Store API key in localStorage (base64 encoded)
+                localStorage.setItem('deepseek-api-key', btoa(apiKey));
+                
                 isConnected = true;
                 document.getElementById('status').innerHTML = '<span class="connected">✓ API key set! Ready to chat</span>';
                 document.getElementById('messageInput').disabled = false;
                 document.getElementById('sendButton').disabled = false;
                 keyInput.value = '';
+                
+                // Hide API setup section after successful setup
+                document.getElementById('apiSetup').style.display = 'none';
+                
+                // Show change API key button
+                document.getElementById('changeApiKeyBtn').style.display = 'block';
+                
                 // Don't auto-focus to prevent scrolling issues
             } else {
                 alert('Please enter a valid API key');
             }
         }
+        
+        function changeApiKey() {
+            document.getElementById('apiSetup').style.display = 'flex';
+            document.getElementById('changeApiKeyBtn').style.display = 'none';
+            document.getElementById('apiKey').focus();
+        }
+        
+        function loadSavedApiKey() {
+            const savedKey = localStorage.getItem('deepseek-api-key');
+            if (savedKey) {
+                try {
+                    apiKey = atob(savedKey);
+                    if (apiKey) {
+                        isConnected = true;
+                        document.getElementById('status').innerHTML = '<span class="connected">✓ API key loaded! Ready to chat</span>';
+                        document.getElementById('messageInput').disabled = false;
+                        document.getElementById('sendButton').disabled = false;
+                        
+                        // Hide API setup section
+                        document.getElementById('apiSetup').style.display = 'none';
+                        
+                        // Show change API key button
+                        document.getElementById('changeApiKeyBtn').style.display = 'block';
+                    }
+                } catch (error) {
+                    console.error('Error loading saved API key:', error);
+                    localStorage.removeItem('deepseek-api-key');
+                }
+            }
+        }
 
         function addMessage(content, isUser = false, isThinking = false) {
             const chatContainer = document.getElementById('chatContainer');
-            const messageDiv = document.createElement('div');
             
             if (isThinking) {
+                const messageDiv = document.createElement('div');
                 messageDiv.className = 'message thinking';
                 messageDiv.innerHTML = '🤔 Thinking...';
+                chatContainer.appendChild(messageDiv);
+                
+                // Only scroll to bottom if user is near the bottom already
+                const isNearBottom = chatContainer.scrollTop + chatContainer.clientHeight >= chatContainer.scrollHeight - 100;
+                if (isNearBottom) {
+                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                }
+                return messageDiv;
             } else {
+                const messageWrapper = document.createElement('div');
+                messageWrapper.className = `message-wrapper ${isUser ? 'user' : 'bot'}`;
+                
+                const messageDiv = document.createElement('div');
                 messageDiv.className = `message ${isUser ? 'user-message' : 'bot-message'}`;
                 messageDiv.innerHTML = content.replace(/\n/g, '<br>');
                 
-                // Add to conversation history
-                if (!isThinking) {
-                    conversationHistory.push({
-                        role: isUser ? 'user' : 'assistant',
-                        content: content
-                    });
+                const actionsDiv = document.createElement('div');
+                actionsDiv.className = 'message-actions';
+                
+                // Copy button for all messages
+                const copyBtn = document.createElement('button');
+                copyBtn.className = 'action-btn copy-btn';
+                copyBtn.innerHTML = '📋';
+                copyBtn.title = 'Copy message';
+                copyBtn.onclick = () => copyMessage(content);
+                actionsDiv.appendChild(copyBtn);
+                
+                // Delete button for all messages
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'action-btn delete-btn';
+                deleteBtn.innerHTML = '🗑️';
+                deleteBtn.title = 'Delete message';
+                deleteBtn.onclick = () => deleteMessage(messageWrapper);
+                actionsDiv.appendChild(deleteBtn);
+                
+                if (isUser) {
+                    // Edit button for user messages
+                    const editBtn = document.createElement('button');
+                    editBtn.className = 'action-btn edit-btn';
+                    editBtn.innerHTML = '✏️';
+                    editBtn.title = 'Edit message';
+                    editBtn.onclick = () => editMessage(messageDiv, content);
+                    actionsDiv.appendChild(editBtn);
+                } else {
+                    // Retry button for AI messages
+                    const retryBtn = document.createElement('button');
+                    retryBtn.className = 'action-btn retry-btn';
+                    retryBtn.innerHTML = '🔄';
+                    retryBtn.title = 'Regenerate response';
+                    retryBtn.onclick = () => regenerateResponse(messageWrapper);
+                    actionsDiv.appendChild(retryBtn);
                 }
+                
+                messageWrapper.appendChild(messageDiv);
+                messageWrapper.appendChild(actionsDiv);
+                chatContainer.appendChild(messageWrapper);
+                
+                // Add to conversation history
+                conversationHistory.push({
+                    role: isUser ? 'user' : 'assistant',
+                    content: content
+                });
+                
+                // Only scroll to bottom if user is near the bottom already
+                const isNearBottom = chatContainer.scrollTop + chatContainer.clientHeight >= chatContainer.scrollHeight - 100;
+                if (isNearBottom) {
+                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                }
+                return messageDiv;
             }
-            
-            chatContainer.appendChild(messageDiv);
-            // Only scroll to bottom if user is near the bottom already
-            const isNearBottom = chatContainer.scrollTop + chatContainer.clientHeight >= chatContainer.scrollHeight - 100;
-            if (isNearBottom) {
-                chatContainer.scrollTop = chatContainer.scrollHeight;
-            }
-            return messageDiv;
         }
 
         async function sendMessage() {
@@ -903,6 +1230,7 @@
         // Initialize
         window.addEventListener('load', function() {
             loadAutoSavedConfig();
+            loadSavedApiKey();
             
             // Auto-save on changes
             ['model', 'temperature', 'maxTokens', 'topP', 'freqPenalty', 'presPenalty', 'basePrompt', 'personalityPrompt'].forEach(id => {
