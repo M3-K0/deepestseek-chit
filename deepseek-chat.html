@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
     <title>DeepSeek R1 Custom Chat</title>
     <meta name="theme-color" content="#1A1A2E">
     <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIkRlZXBTZWVrIFIxIEN1c3RvbSBDaGF0IiwKICAic2hvcnRfbmFtZSI6ICJEZWVwU2VlayBDaGF0IiwKICAiZGVzY3JpcHRpb24iOiAiQ3VzdG9tIERlZXBTZWVrIFIxIENoYXQgSW50ZXJmYWNlIiwKICAic3RhcnRfdXJsIjogIi8iLAogICJkaXNwbGF5IjogInN0YW5kYWxvbmUiLAogICJiYWNrZ3JvdW5kX2NvbG9yIjogIiMxQTFBMkUiLAogICJ0aGVtZV9jb2xvciI6ICIjMUExQTJFIiwKICAiaWNvbnMiOiBbCiAgICB7CiAgICAgICJzcmMiOiAiZGF0YTppbWFnZS9zdmcreG1sO2Jhc2U2NCxQSE4yWnlCM2FXUjBhRDBpTmpRaUlHaGxhV2RvZEQwaU5qUWlJSFpwWlhkQ2IzZzlJakFnTUNCMk5qUWdOalFpSUdacGJHdzlJaU0yUXpZelJrWWlQanh5WldOMElIZHBaSFJvUFNJMk5DSWdhR1ZwWjJoMFBTSTJOQ0lpSUhKNFBTSTRJaUJtYVd4c1BTSWpOa00yTTBaR0lpOCtQQzl6ZG1jKyIsInNpemVzIjogIjY0eDY0IiwKICAgICAgInR5cGUiOiAiaW1hZ2Uvc3ZnK3htbCIKICAgIH0KICBdCn0=">
@@ -16,12 +16,13 @@
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: #1A1A2E;
-            height: 100vh;
+            min-height: 100vh;
             display: flex;
             flex-direction: column;
             overflow: hidden;
             margin: 0;
             padding: 0;
+            padding-bottom: env(safe-area-inset-bottom);
         }
 
         .header {
@@ -249,10 +250,12 @@
             flex: 1;
             overflow-y: auto;
             padding: 16px 20px;
+            padding-bottom: 20px;
             display: flex;
             flex-direction: column;
             gap: 12px;
             background: #1A1A2E;
+            scroll-behavior: smooth;
         }
 
         .message {
@@ -356,6 +359,9 @@
             background: #2D2D44;
             border-top: 2px solid #3D3D5C;
             flex-shrink: 0;
+            position: sticky;
+            bottom: 0;
+            z-index: 100;
         }
 
         .input-wrapper {
@@ -1411,7 +1417,40 @@
                     element.addEventListener('input', autoSaveConfig);
                 }
             });
+            
+            // Handle mobile keyboard
+            handleMobileKeyboard();
         });
+
+        function handleMobileKeyboard() {
+            const messageInput = document.getElementById('messageInput');
+            const chatContainer = document.getElementById('chatContainer');
+            
+            // Scroll to bottom when input is focused
+            messageInput.addEventListener('focus', function() {
+                setTimeout(() => {
+                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                    messageInput.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }, 300);
+            });
+            
+            // Handle viewport height changes (keyboard open/close)
+            if (window.visualViewport) {
+                window.visualViewport.addEventListener('resize', () => {
+                    const keyboardHeight = window.innerHeight - window.visualViewport.height;
+                    if (keyboardHeight > 0) {
+                        // Keyboard is open
+                        document.body.style.paddingBottom = keyboardHeight + 'px';
+                        setTimeout(() => {
+                            chatContainer.scrollTop = chatContainer.scrollHeight;
+                        }, 100);
+                    } else {
+                        // Keyboard is closed
+                        document.body.style.paddingBottom = 'env(safe-area-inset-bottom)';
+                    }
+                });
+            }
+        }
         
         // Event listeners
         document.getElementById('messageInput').addEventListener('keydown', function(e) {
