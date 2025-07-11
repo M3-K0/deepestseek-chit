@@ -588,7 +588,27 @@
                 </div>
                 
                 <div class="prompt-content" id="memoryPromptContent">
-                    <textarea id="memoryContext" class="prompt-textarea" placeholder="Enter persistent context information like current projects, preferences, important facts to remember across conversations..."></textarea>
+                    <textarea id="memoryContext" class="prompt-textarea" placeholder="Enter persistent context information like current projects, preferences, important facts to remember across conversations...">## User Profile (moke)
+- Expert developer: Kotlin, Java, Python, TypeScript, JavaScript
+- Platform: Windows 11 host + Ubuntu VM
+- Focus: Android development, messaging apps, automation
+- Tools: Android Studio, ADB, Git, Node.js, Flutter
+- Architecture: Clean architecture, service-based patterns
+
+## Communication Style
+- Casual, direct, concise responses (under 4 lines unless detail requested)
+- Friendly but efficient, minimal preamble/postamble
+- Don't over-explain basics to experienced developer
+
+## Current Projects
+- DeepSeek chat interface improvements (OneDrive integration, mobile optimization)
+- Marketplace monitor project (React PWA + Node.js backend)
+- Android development and automation tools
+
+## Working Environment
+- Claude Code CLI for development workflow
+- Command line automation and project setup
+- Integration with development tools and services</textarea>
                     <div style="margin-top: 10px; font-size: 12px; color: #9A9AB0;">
                         This context is included with every API call along with recent messages, but saved separately to reduce token usage.
                     </div>
