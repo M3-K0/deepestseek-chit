@@ -19,7 +19,6 @@
             min-height: 100vh;
             display: flex;
             flex-direction: column;
-            overflow: hidden;
             margin: 0;
             padding: 0;
             padding-bottom: env(safe-area-inset-bottom);
@@ -249,6 +248,7 @@
         .chat-container {
             flex: 1;
             overflow-y: auto;
+            overflow-x: hidden;
             padding: 16px 20px;
             padding-bottom: 20px;
             display: flex;
@@ -256,6 +256,8 @@
             gap: 12px;
             background: #1A1A2E;
             scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
+            height: 0; /* Forces flex to work properly */
         }
 
         .message {
@@ -1162,11 +1164,10 @@
                 messageDiv.innerHTML = '🤔 Thinking...';
                 chatContainer.appendChild(messageDiv);
                 
-                // Only scroll to bottom if user is near the bottom already
-                const isNearBottom = chatContainer.scrollTop + chatContainer.clientHeight >= chatContainer.scrollHeight - 100;
-                if (isNearBottom) {
+                // Auto-scroll for thinking indicator
+                setTimeout(() => {
                     chatContainer.scrollTop = chatContainer.scrollHeight;
-                }
+                }, 50);
                 return messageDiv;
             } else {
                 const messageWrapper = document.createElement('div');
@@ -1223,10 +1224,14 @@
                     content: content
                 });
                 
-                // Only scroll to bottom if user is near the bottom already
-                const isNearBottom = chatContainer.scrollTop + chatContainer.clientHeight >= chatContainer.scrollHeight - 100;
-                if (isNearBottom) {
-                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                // Only auto-scroll if user is near bottom or if this is a new message from user
+                const isNearBottom = chatContainer.scrollTop + chatContainer.clientHeight >= chatContainer.scrollHeight - 150;
+                const shouldAutoScroll = isNearBottom || isUser;
+                
+                if (shouldAutoScroll) {
+                    setTimeout(() => {
+                        chatContainer.scrollTop = chatContainer.scrollHeight;
+                    }, 50);
                 }
                 return messageDiv;
             }
@@ -1518,11 +1523,10 @@
             const messageInput = document.getElementById('messageInput');
             const chatContainer = document.getElementById('chatContainer');
             
-            // Scroll to bottom when input is focused
+            // Only auto-scroll when input is focused, don't force scroll otherwise
             messageInput.addEventListener('focus', function() {
                 setTimeout(() => {
                     chatContainer.scrollTop = chatContainer.scrollHeight;
-                    messageInput.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                 }, 300);
             });
             
@@ -1531,17 +1535,30 @@
                 window.visualViewport.addEventListener('resize', () => {
                     const keyboardHeight = window.innerHeight - window.visualViewport.height;
                     if (keyboardHeight > 0) {
-                        // Keyboard is open
-                        document.body.style.paddingBottom = keyboardHeight + 'px';
-                        setTimeout(() => {
-                            chatContainer.scrollTop = chatContainer.scrollHeight;
-                        }, 100);
+                        // Keyboard is open - only adjust if input is focused
+                        if (document.activeElement === messageInput) {
+                            document.body.style.paddingBottom = keyboardHeight + 'px';
+                            setTimeout(() => {
+                                chatContainer.scrollTop = chatContainer.scrollHeight;
+                            }, 100);
+                        }
                     } else {
                         // Keyboard is closed
                         document.body.style.paddingBottom = 'env(safe-area-inset-bottom)';
                     }
                 });
             }
+            
+            // Fix scroll behavior - ensure chat container can scroll freely
+            chatContainer.addEventListener('touchstart', function(e) {
+                // Allow normal scrolling
+                e.stopPropagation();
+            }, { passive: true });
+            
+            chatContainer.addEventListener('touchmove', function(e) {
+                // Allow normal scrolling
+                e.stopPropagation();
+            }, { passive: true });
         }
         
         // Event listeners
