@@ -500,6 +500,8 @@
         <button class="settings-btn" onclick="toggleSettings()">⚙️</button>
         <h1>🤖 DeepSeek R1 Custom</h1>
         <div style="display: flex; gap: 8px;">
+            <button class="clear-btn" onclick="setupOneDrive()" title="Setup OneDrive">☁️</button>
+            <button class="clear-btn" onclick="loadConversation()" title="Load Conversation">📁</button>
             <button class="clear-btn" id="changeApiKeyBtn" onclick="changeApiKey()" style="display: none;" title="Change API Key">🔑</button>
             <button class="clear-btn" onclick="clearChat()">🗑️</button>
         </div>
@@ -565,6 +567,7 @@
                 <div class="prompt-tabs">
                     <button class="prompt-tab active" onclick="switchPromptTab('base')">📋 Base Instructions</button>
                     <button class="prompt-tab" onclick="switchPromptTab('personality')">🎭 Personality</button>
+                    <button class="prompt-tab" onclick="switchPromptTab('memory')">🧠 Memory Context</button>
                 </div>
                 
                 <div class="prompt-content active" id="basePromptContent">
@@ -573,6 +576,13 @@
                 
                 <div class="prompt-content" id="personalityPromptContent">
                     <textarea id="personalityPrompt" class="prompt-textarea" placeholder="Define the AI's personality, tone, and communication style (e.g., friendly, professional, creative, analytical)...">Be friendly and engaging while maintaining professionalism. Use a conversational tone and show enthusiasm for helping users solve problems.</textarea>
+                </div>
+                
+                <div class="prompt-content" id="memoryPromptContent">
+                    <textarea id="memoryContext" class="prompt-textarea" placeholder="Enter persistent context information like current projects, preferences, important facts to remember across conversations..."></textarea>
+                    <div style="margin-top: 10px; font-size: 12px; color: #9A9AB0;">
+                        This context is included with every API call along with recent messages, but saved separately to reduce token usage.
+                    </div>
                 </div>
                 
                 <div class="preset-buttons">
@@ -619,6 +629,10 @@
         let isConnected = false;
         let isThinking = false;
         let conversationHistory = [];
+        let memoryContext = '';
+        let oneDriveHandle = null;
+        let currentConversationId = null;
+        let contextLimit = 10; // Only send last 10 messages to API
 
         const presets = {
             coding: {
@@ -686,8 +700,147 @@
             if (confirm('Clear all messages?')) {
                 document.getElementById('chatContainer').innerHTML = '';
                 conversationHistory = [];
+                currentConversationId = null;
             }
         }
+
+        // OneDrive and conversation persistence
+        async function setupOneDrive() {
+            if (!window.showDirectoryPicker) {
+                alert('Your browser doesn\'t support folder access. Use Chrome or Edge for OneDrive sync.');
+                return;
+            }
+            
+            try {
+                oneDriveHandle = await window.showDirectoryPicker({
+                    mode: 'readwrite',
+                    startIn: 'documents'
+                });
+                
+                localStorage.setItem('onedrive-setup', 'true');
+                
+                const status = document.getElementById('status');
+                const originalText = status.innerHTML;
+                status.innerHTML = '<span class="connected">✓ OneDrive folder selected</span>';
+                setTimeout(() => {
+                    status.innerHTML = originalText;
+                }, 2000);
+                
+                // Create DeepSeek folder if it doesn't exist
+                try {
+                    await oneDriveHandle.getDirectoryHandle('DeepSeek-Conversations', { create: true });
+                } catch (error) {
+                    console.error('Error creating DeepSeek folder:', error);
+                }
+                
+            } catch (error) {
+                console.error('Error setting up OneDrive:', error);
+            }
+        }
+
+        async function saveConversation() {
+            if (!oneDriveHandle || conversationHistory.length === 0) return;
+            
+            if (!currentConversationId) {
+                currentConversationId = 'conversation-' + Date.now();
+            }
+            
+            const conversationData = {
+                id: currentConversationId,
+                timestamp: new Date().toISOString(),
+                messages: conversationHistory,
+                memoryContext: memoryContext,
+                settings: {
+                    model: document.getElementById('model').value,
+                    temperature: document.getElementById('temperature').value,
+                    basePrompt: document.getElementById('basePrompt').value,
+                    personalityPrompt: document.getElementById('personalityPrompt').value
+                }
+            };
+            
+            try {
+                const deepseekFolder = await oneDriveHandle.getDirectoryHandle('DeepSeek-Conversations', { create: true });
+                const fileHandle = await deepseekFolder.getFileHandle(currentConversationId + '.json', { create: true });
+                const writable = await fileHandle.createWritable();
+                await writable.write(JSON.stringify(conversationData, null, 2));
+                await writable.close();
+                
+                console.log('Conversation saved to OneDrive');
+            } catch (error) {
+                console.error('Error saving conversation:', error);
+            }
+        }
+
+        async function loadConversation() {
+            if (!oneDriveHandle) {
+                alert('Please set up OneDrive folder first');
+                return;
+            }
+            
+            try {
+                const deepseekFolder = await oneDriveHandle.getDirectoryHandle('DeepSeek-Conversations');
+                const files = [];
+                
+                for await (const [name, handle] of deepseekFolder.entries()) {
+                    if (name.endsWith('.json')) {
+                        files.push({ name, handle });
+                    }
+                }
+                
+                if (files.length === 0) {
+                    alert('No saved conversations found');
+                    return;
+                }
+                
+                // Simple file picker (could be enhanced with a proper modal)
+                const fileNames = files.map(f => f.name.replace('.json', ''));
+                const selected = prompt('Select conversation:\n' + fileNames.join('\n'));
+                
+                if (selected) {
+                    const selectedFile = files.find(f => f.name === selected + '.json');
+                    if (selectedFile) {
+                        const file = await selectedFile.handle.getFile();
+                        const data = JSON.parse(await file.text());
+                        
+                        // Load conversation
+                        conversationHistory = data.messages || [];
+                        memoryContext = data.memoryContext || '';
+                        currentConversationId = data.id;
+                        
+                        // Load settings
+                        if (data.settings) {
+                            document.getElementById('model').value = data.settings.model || 'deepseek-reasoner';
+                            document.getElementById('temperature').value = data.settings.temperature || '0.7';
+                            document.getElementById('basePrompt').value = data.settings.basePrompt || '';
+                            document.getElementById('personalityPrompt').value = data.settings.personalityPrompt || '';
+                            updateTempLabel();
+                        }
+                        
+                        // Rebuild chat display
+                        rebuildChatDisplay();
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading conversation:', error);
+                alert('Error loading conversation: ' + error.message);
+            }
+        }
+
+        function rebuildChatDisplay() {
+            const chatContainer = document.getElementById('chatContainer');
+            chatContainer.innerHTML = '';
+            
+            conversationHistory.forEach(msg => {
+                addMessage(msg.content, msg.role === 'user', false);
+            });
+        }
+
+        // Auto-save conversation every 30 seconds
+        setInterval(() => {
+            if (oneDriveHandle && conversationHistory.length > 0) {
+                saveConversation();
+            }
+        }, 30000);
 
         function copyMessage(content) {
             navigator.clipboard.writeText(content).then(() => {
@@ -764,30 +917,37 @@
                 const thinkingDiv = addMessage('', false, true);
                 
                 try {
-                    // Build messages array like in sendMessage
+                    // Build messages array with smart context system
                     const messages = [];
                     
                     const basePrompt = document.getElementById('basePrompt').value.trim();
                     const personalityPrompt = document.getElementById('personalityPrompt').value.trim();
+                    const memoryContext = document.getElementById('memoryContext').value.trim();
                     
-                    if (basePrompt || personalityPrompt) {
-                        let combinedPrompt = '';
-                        if (basePrompt) {
-                            combinedPrompt += basePrompt;
-                        }
-                        if (personalityPrompt) {
-                            if (combinedPrompt) combinedPrompt += '\n\n';
-                            combinedPrompt += 'Personality and Communication Style: ' + personalityPrompt;
-                        }
-                        
+                    // Build system prompt
+                    let systemPrompt = '';
+                    if (basePrompt) {
+                        systemPrompt += basePrompt;
+                    }
+                    if (personalityPrompt) {
+                        if (systemPrompt) systemPrompt += '\n\n';
+                        systemPrompt += 'Personality and Communication Style: ' + personalityPrompt;
+                    }
+                    if (memoryContext) {
+                        if (systemPrompt) systemPrompt += '\n\n';
+                        systemPrompt += 'Important Context & Memory: ' + memoryContext;
+                    }
+                    
+                    if (systemPrompt) {
                         messages.push({
                             role: 'system',
-                            content: combinedPrompt
+                            content: systemPrompt
                         });
                     }
                     
-                    // Add conversation history
-                    messages.push(...conversationHistory);
+                    // Add only recent conversation history (last N messages)
+                    const recentHistory = conversationHistory.slice(-contextLimit);
+                    messages.push(...recentHistory);
                     
                     // Add the user message
                     messages.push({
@@ -994,30 +1154,37 @@
             const thinkingDiv = addMessage('', false, true);
             
             try {
-                // Build messages array with combined system prompt and conversation history
+                // Build messages array with smart context system
                 const messages = [];
                 
                 const basePrompt = document.getElementById('basePrompt').value.trim();
                 const personalityPrompt = document.getElementById('personalityPrompt').value.trim();
+                const memoryContext = document.getElementById('memoryContext').value.trim();
                 
-                if (basePrompt || personalityPrompt) {
-                    let combinedPrompt = '';
-                    if (basePrompt) {
-                        combinedPrompt += basePrompt;
-                    }
-                    if (personalityPrompt) {
-                        if (combinedPrompt) combinedPrompt += '\n\n';
-                        combinedPrompt += 'Personality and Communication Style: ' + personalityPrompt;
-                    }
-                    
+                // Build system prompt
+                let systemPrompt = '';
+                if (basePrompt) {
+                    systemPrompt += basePrompt;
+                }
+                if (personalityPrompt) {
+                    if (systemPrompt) systemPrompt += '\n\n';
+                    systemPrompt += 'Personality and Communication Style: ' + personalityPrompt;
+                }
+                if (memoryContext) {
+                    if (systemPrompt) systemPrompt += '\n\n';
+                    systemPrompt += 'Important Context & Memory: ' + memoryContext;
+                }
+                
+                if (systemPrompt) {
                     messages.push({
                         role: 'system',
-                        content: combinedPrompt
+                        content: systemPrompt
                     });
                 }
                 
-                // Add conversation history
-                messages.push(...conversationHistory);
+                // Add only recent conversation history (last N messages)
+                const recentHistory = conversationHistory.slice(-contextLimit);
+                messages.push(...recentHistory);
                 
                 // Add current message
                 messages.push({
@@ -1082,6 +1249,7 @@
                     presPenalty: document.getElementById('presPenalty').value,
                     basePrompt: document.getElementById('basePrompt').value,
                     personalityPrompt: document.getElementById('personalityPrompt').value,
+                    memoryContext: document.getElementById('memoryContext').value,
                     timestamp: new Date().toISOString()
                 };
                 
@@ -1162,6 +1330,7 @@
             }
             if (config.basePrompt) document.getElementById('basePrompt').value = config.basePrompt;
             if (config.personalityPrompt) document.getElementById('personalityPrompt').value = config.personalityPrompt;
+            if (config.memoryContext) document.getElementById('memoryContext').value = config.memoryContext;
         }
         
         function resetConfig() {
@@ -1174,6 +1343,7 @@
                 document.getElementById('presPenalty').value = '0';
                 document.getElementById('basePrompt').value = 'You are a helpful AI assistant. Provide clear, accurate, and well-structured responses. Be concise but thorough in your explanations.';
                 document.getElementById('personalityPrompt').value = 'Be friendly and engaging while maintaining professionalism. Use a conversational tone and show enthusiasm for helping users solve problems.';
+                document.getElementById('memoryContext').value = '';
                 
                 updateTempLabel();
                 updateTopPLabel();
@@ -1203,7 +1373,8 @@
                 freqPenalty: document.getElementById('freqPenalty').value,
                 presPenalty: document.getElementById('presPenalty').value,
                 basePrompt: document.getElementById('basePrompt').value,
-                personalityPrompt: document.getElementById('personalityPrompt').value
+                personalityPrompt: document.getElementById('personalityPrompt').value,
+                memoryContext: document.getElementById('memoryContext').value
             };
             localStorage.setItem('deepseek-config', JSON.stringify(config));
         }
@@ -1233,7 +1404,7 @@
             loadSavedApiKey();
             
             // Auto-save on changes
-            ['model', 'temperature', 'maxTokens', 'topP', 'freqPenalty', 'presPenalty', 'basePrompt', 'personalityPrompt'].forEach(id => {
+            ['model', 'temperature', 'maxTokens', 'topP', 'freqPenalty', 'presPenalty', 'basePrompt', 'personalityPrompt', 'memoryContext'].forEach(id => {
                 const element = document.getElementById(id);
                 if (element) {
                     element.addEventListener('change', autoSaveConfig);
