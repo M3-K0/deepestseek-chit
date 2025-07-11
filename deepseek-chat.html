@@ -564,7 +564,8 @@
 
         function toggleSettings() {
             const panel = document.getElementById('settingsPanel');
-            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+            const isVisible = panel.style.display === 'block';
+            panel.style.display = isVisible ? 'none' : 'block';
         }
 
         function setPreset(type) {
@@ -616,8 +617,8 @@
                 document.getElementById('status').innerHTML = '<span class="connected">✓ API key set! Ready to chat</span>';
                 document.getElementById('messageInput').disabled = false;
                 document.getElementById('sendButton').disabled = false;
-                document.getElementById('messageInput').focus();
                 keyInput.value = '';
+                // Don't auto-focus to prevent scrolling issues
             } else {
                 alert('Please enter a valid API key');
             }
@@ -644,7 +645,11 @@
             }
             
             chatContainer.appendChild(messageDiv);
-            chatContainer.scrollTop = chatContainer.scrollHeight;
+            // Only scroll to bottom if user is near the bottom already
+            const isNearBottom = chatContainer.scrollTop + chatContainer.clientHeight >= chatContainer.scrollHeight - 100;
+            if (isNearBottom) {
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            }
             return messageDiv;
         }
 
@@ -735,30 +740,47 @@
             
             isThinking = false;
             document.getElementById('sendButton').disabled = false;
-            messageInput.focus();
+            // Don't auto-focus to prevent scrolling issues
         }
 
         // Configuration management
         function saveConfig() {
-            const config = {
-                model: document.getElementById('model').value,
-                temperature: document.getElementById('temperature').value,
-                maxTokens: document.getElementById('maxTokens').value,
-                topP: document.getElementById('topP').value,
-                freqPenalty: document.getElementById('freqPenalty').value,
-                presPenalty: document.getElementById('presPenalty').value,
-                basePrompt: document.getElementById('basePrompt').value,
-                personalityPrompt: document.getElementById('personalityPrompt').value,
-                timestamp: new Date().toISOString()
-            };
-            
-            const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `deepseek-config-${new Date().toISOString().split('T')[0]}.json`;
-            a.click();
-            URL.revokeObjectURL(url);
+            try {
+                const config = {
+                    model: document.getElementById('model').value,
+                    temperature: document.getElementById('temperature').value,
+                    maxTokens: document.getElementById('maxTokens').value,
+                    topP: document.getElementById('topP').value,
+                    freqPenalty: document.getElementById('freqPenalty').value,
+                    presPenalty: document.getElementById('presPenalty').value,
+                    basePrompt: document.getElementById('basePrompt').value,
+                    personalityPrompt: document.getElementById('personalityPrompt').value,
+                    timestamp: new Date().toISOString()
+                };
+                
+                const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `deepseek-config-${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                // Close settings panel after saving
+                document.getElementById('settingsPanel').style.display = 'none';
+                
+                // Show success message
+                document.getElementById('status').innerHTML = '<span class="connected">✓ Configuration saved!</span>';
+                setTimeout(() => {
+                    if (isConnected) {
+                        document.getElementById('status').innerHTML = '<span class="connected">✓ API key set! Ready to chat</span>';
+                    }
+                }, 2000);
+            } catch (error) {
+                alert('Error saving configuration: ' + error.message);
+            }
         }
         
         function loadConfig() {
@@ -773,9 +795,19 @@
                     try {
                         const config = JSON.parse(e.target.result);
                         applyConfig(config);
-                        addMessage('Configuration loaded successfully! 🎉', false);
+                        
+                        // Close settings panel after loading
+                        document.getElementById('settingsPanel').style.display = 'none';
+                        
+                        // Show success message
+                        document.getElementById('status').innerHTML = '<span class="connected">✓ Configuration loaded!</span>';
+                        setTimeout(() => {
+                            if (isConnected) {
+                                document.getElementById('status').innerHTML = '<span class="connected">✓ API key set! Ready to chat</span>';
+                            }
+                        }, 2000);
                     } catch (error) {
-                        addMessage('Error loading configuration: ' + error.message, false);
+                        alert('Error loading configuration: ' + error.message);
                     }
                 };
                 reader.readAsText(file);
@@ -821,7 +853,16 @@
                 updateFreqLabel();
                 updatePresLabel();
                 
-                addMessage('Configuration reset to defaults! 🔄', false);
+                // Close settings panel after reset
+                document.getElementById('settingsPanel').style.display = 'none';
+                
+                // Show success message
+                document.getElementById('status').innerHTML = '<span class="connected">✓ Configuration reset!</span>';
+                setTimeout(() => {
+                    if (isConnected) {
+                        document.getElementById('status').innerHTML = '<span class="connected">✓ API key set! Ready to chat</span>';
+                    }
+                }, 2000);
             }
         }
         
