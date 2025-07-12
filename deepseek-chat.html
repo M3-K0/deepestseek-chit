@@ -343,6 +343,90 @@
             display: none;
         }
 
+        /* Image Upload Styles */
+        .image-upload-btn {
+            background: #3D3D5C;
+            border: 2px solid #4A4A6A;
+            border-radius: 8px;
+            width: 40px;
+            height: 40px;
+            color: white;
+            cursor: pointer;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .image-upload-btn:hover {
+            background: #4A4A6A;
+            border-color: #6C63FF;
+        }
+
+        .image-upload-btn.has-image {
+            background: #6C63FF;
+            border-color: #6C63FF;
+        }
+
+        .image-preview-container {
+            position: relative;
+            margin-bottom: 8px;
+        }
+
+        .image-preview {
+            max-width: 300px;
+            max-height: 200px;
+            border-radius: 8px;
+            border: 2px solid #4A4A6A;
+            object-fit: contain;
+        }
+
+        .image-remove-btn {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: #f44336;
+            border: none;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            color: white;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .message-image {
+            max-width: 100%;
+            max-height: 400px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            object-fit: contain;
+            cursor: pointer;
+        }
+
+        .image-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+
+        .image-modal img {
+            max-width: 90%;
+            max-height: 90%;
+            object-fit: contain;
+        }
+
         .api-setup {
             background: #2D2D44;
             padding: 16px 20px;
@@ -1075,6 +1159,17 @@
                 padding: 8px;
                 font-size: 11px;
             }
+
+            .image-upload-btn {
+                width: 36px;
+                height: 36px;
+                font-size: 14px;
+            }
+
+            .image-preview {
+                max-width: 250px;
+                max-height: 150px;
+            }
         }
     </style>
 </head>
@@ -1283,7 +1378,9 @@
     </div>
 
     <div class="input-container">
+        <div id="imagePreviewArea"></div>
         <div class="input-wrapper">
+            <button class="image-upload-btn" id="imageUploadBtn" onclick="selectImage()" title="Upload Image">📷</button>
             <textarea 
                 id="messageInput" 
                 class="message-input" 
@@ -1299,8 +1396,9 @@
                 </div>
                 <div class="token-text" id="tokenText">0/8000 (0%)</div>
             </div>
-            <div class="keyboard-hint">Ctrl+Enter to send • Esc to close • Alt+C copy • Alt+E edit</div>
+            <div class="keyboard-hint">Ctrl+Enter to send • Esc to close • Alt+C copy • Alt+E edit • 📷 for images</div>
         </div>
+        <input type="file" id="imageFileInput" accept="image/*" style="display: none;" onchange="handleImageUpload(event)">
     </div>
 
     <script>
@@ -1514,7 +1612,7 @@
             chatContainer.innerHTML = '';
             
             conversationHistory.forEach(msg => {
-                addMessage(msg.content, msg.role === 'user', false, false, msg.timestamp);
+                addMessage(msg.content, msg.role === 'user', false, false, msg.timestamp, msg.imageData);
             });
 
             updateConversationList();
@@ -1662,6 +1760,10 @@
         let focusSessionMessages = 0;
         let totalFocusTime = parseInt(localStorage.getItem('deepseek-total-focus-time') || '0');
         let focusSettings = JSON.parse(localStorage.getItem('deepseek-focus-settings') || '{"autoTimer": true, "showStats": true, "hideUI": true}');
+
+        // Image upload system
+        let currentImage = null;
+        let currentImageBase64 = null;
 
         function toggleSettings() {
             const panel = document.getElementById('settingsPanel');
@@ -2092,7 +2194,7 @@
             chatContainer.innerHTML = '';
             
             conversationHistory.forEach(msg => {
-                addMessage(msg.content, msg.role === 'user', false);
+                addMessage(msg.content, msg.role === 'user', false, false, msg.timestamp, msg.imageData);
             });
         }
 
@@ -2517,6 +2619,85 @@
             document.getElementById('focusShowStats').checked = focusSettings.showStats;
         }
 
+        // Image Upload Functions
+        function selectImage() {
+            document.getElementById('imageFileInput').click();
+        }
+
+        function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            // Validate file type
+            if (!file.type.startsWith('image/')) {
+                showToast('Please select a valid image file', 'error');
+                return;
+            }
+
+            // Validate file size (max 10MB)
+            if (file.size > 10 * 1024 * 1024) {
+                showToast('Image too large. Please select a file under 10MB', 'error');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                currentImageBase64 = e.target.result;
+                currentImage = file;
+                displayImagePreview(e.target.result);
+                updateImageUploadButton(true);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function displayImagePreview(imageSrc) {
+            const previewArea = document.getElementById('imagePreviewArea');
+            previewArea.innerHTML = `
+                <div class="image-preview-container">
+                    <img src="${imageSrc}" alt="Image preview" class="image-preview">
+                    <button class="image-remove-btn" onclick="removeImage()" title="Remove image">×</button>
+                </div>
+            `;
+            previewArea.style.display = 'block';
+        }
+
+        function removeImage() {
+            currentImage = null;
+            currentImageBase64 = null;
+            const previewArea = document.getElementById('imagePreviewArea');
+            previewArea.innerHTML = '';
+            previewArea.style.display = 'none';
+            updateImageUploadButton(false);
+            
+            // Reset file input
+            document.getElementById('imageFileInput').value = '';
+        }
+
+        function updateImageUploadButton(hasImage) {
+            const button = document.getElementById('imageUploadBtn');
+            if (hasImage) {
+                button.classList.add('has-image');
+                button.innerHTML = '🖼️';
+                button.title = 'Change Image';
+            } else {
+                button.classList.remove('has-image');
+                button.innerHTML = '📷';
+                button.title = 'Upload Image';
+            }
+        }
+
+        function openImageModal(imageSrc) {
+            const modal = document.getElementById('imageModal');
+            const modalImage = document.getElementById('modalImage');
+            modalImage.src = imageSrc;
+            modal.style.display = 'flex';
+        }
+
+        function closeImageModal() {
+            const modal = document.getElementById('imageModal');
+            modal.style.display = 'none';
+        }
+
         function setApiKey() {
             const keyInput = document.getElementById('apiKey');
             apiKey = keyInput.value.trim();
@@ -2573,7 +2754,7 @@
             }
         }
 
-        function addMessage(content, isUser = false, isThinking = false, addToHistory = true, timestamp = null) {
+        function addMessage(content, isUser = false, isThinking = false, addToHistory = true, timestamp = null, imageData = null) {
             const chatContainer = document.getElementById('chatContainer');
             
             if (isThinking) {
@@ -2593,7 +2774,14 @@
                 
                 const messageDiv = document.createElement('div');
                 messageDiv.className = `message ${isUser ? 'user-message' : 'bot-message'}`;
-                messageDiv.innerHTML = content.replace(/\n/g, '<br>');
+                
+                // Add image if present
+                let messageContent = '';
+                if (imageData) {
+                    messageContent += `<img src="${imageData}" alt="Uploaded image" class="message-image" onclick="openImageModal('${imageData}')">`;
+                }
+                messageContent += content.replace(/\n/g, '<br>');
+                messageDiv.innerHTML = messageContent;
                 
                 // Add timestamp
                 const timestampDiv = document.createElement('div');
@@ -2669,11 +2857,18 @@
                 
                 // Add to conversation history (unless streaming)
                 if (addToHistory) {
-                    conversationHistory.push({
+                    const historyEntry = {
                         role: isUser ? 'user' : 'assistant',
                         content: content,
                         timestamp: Date.now()
-                    });
+                    };
+                    
+                    // Add image data if present
+                    if (imageData) {
+                        historyEntry.imageData = imageData;
+                    }
+                    
+                    conversationHistory.push(historyEntry);
                     
                     // Increment focus mode message counter
                     incrementFocusMessageCount();
@@ -2705,8 +2900,13 @@
                 displayMessage = `↩️ Replying to: "${replyText}"\n\n${message}`;
             }
             
-            addMessage(displayMessage, true);
+            // Add message with image if present
+            addMessage(displayMessage, true, false, true, null, currentImageBase64);
             messageInput.value = '';
+            
+            // Store image for API call, then clear preview
+            const imageForAPI = currentImageBase64;
+            removeImage(); // Clear the preview after adding to chat
             
             // Clear reply context after sending
             clearReplyContext();
@@ -2748,11 +2948,36 @@
                 const recentHistory = conversationHistory.slice(-contextLimit);
                 messages.push(...recentHistory);
                 
-                // Add current message
-                messages.push({
+                // Add current message (with image support)
+                const userMessage = {
                     role: 'user',
-                    content: message
-                });
+                    content: []
+                };
+
+                // Add text content
+                if (message) {
+                    userMessage.content.push({
+                        type: 'text',
+                        text: message
+                    });
+                }
+
+                // Add image if present
+                if (imageForAPI) {
+                    userMessage.content.push({
+                        type: 'image_url',
+                        image_url: {
+                            url: imageForAPI
+                        }
+                    });
+                }
+
+                // If no image, use simple text format for compatibility
+                if (!imageForAPI) {
+                    userMessage.content = message;
+                }
+
+                messages.push(userMessage);
 
                 const requestBody = {
                     model: document.getElementById('model').value,
@@ -3233,6 +3458,11 @@
         <div style="font-weight: 600; margin-bottom: 4px;">Session Stats</div>
         <div id="messageCount">Messages: 0</div>
         <div id="sessionDuration">Duration: 00:00</div>
+    </div>
+
+    <!-- Image Modal -->
+    <div class="image-modal" id="imageModal" onclick="closeImageModal()">
+        <img id="modalImage" src="" alt="Full size image">
     </div>
 </body>
 </html>
