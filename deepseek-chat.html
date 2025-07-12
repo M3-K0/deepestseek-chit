@@ -197,6 +197,35 @@
             background: #4A4A6A;
         }
 
+        .workflow-buttons {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .workflow-btn {
+            background: #3D3D5C;
+            border: 2px solid #4A4A6A;
+            border-radius: 6px;
+            color: #9A9AB0;
+            padding: 6px 12px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-weight: 500;
+        }
+
+        .workflow-btn:hover {
+            background: #4A4A6A;
+            color: white;
+        }
+
+        .workflow-btn.active {
+            background: #6C63FF;
+            border-color: #6C63FF;
+            color: white;
+        }
+
         .api-setup {
             background: #2D2D44;
             padding: 16px 20px;
@@ -843,6 +872,15 @@
                 overflow: hidden;
                 text-overflow: ellipsis;
             }
+
+            .workflow-buttons {
+                gap: 6px;
+            }
+
+            .workflow-btn {
+                font-size: 11px;
+                padding: 5px 10px;
+            }
         }
     </style>
 </head>
@@ -865,7 +903,14 @@
     <div class="main-container">
         <div class="header">
         <button class="settings-btn" onclick="toggleSettings()">⚙️</button>
-        <h1>🤖 DeepSeek R1 Custom</h1>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+            <h1>🤖 DeepSeek R1 Custom</h1>
+            <div class="workflow-buttons">
+                <button class="workflow-btn" onclick="setWorkflow('coding')">💻 Coding</button>
+                <button class="workflow-btn" onclick="setWorkflow('research')">🔍 Research</button>
+                <button class="workflow-btn" onclick="setWorkflow('creative')">🎨 Creative</button>
+            </div>
+        </div>
         <div style="display: flex; gap: 8px;">
             <button class="clear-btn" onclick="exportConversation()" title="Export to OneDrive">💾</button>
             <button class="clear-btn" onclick="shareConversation()" title="Share" style="display: none;" id="shareBtn">📤</button>
@@ -1280,28 +1325,49 @@
 
         let contextLimit = 10; // Only send last 10 messages to API
 
-        const presets = {
+        const workflowPresets = {
             coding: {
+                name: "💻 Coding",
                 base: "You are an expert software engineer and coding assistant. Provide clean, efficient code with clear explanations. Always consider best practices, security, and performance. Format code blocks properly and include comments where helpful.",
-                personality: "Be methodical and precise, but also encouraging. Show excitement about elegant solutions and help users understand not just what to do, but why. Use technical language appropriately but explain complex concepts clearly."
+                personality: "Be methodical and precise, but also encouraging. Show excitement about elegant solutions and help users understand not just what to do, but why. Use technical language appropriately but explain complex concepts clearly.",
+                parameters: {
+                    model: "deepseek-reasoner",
+                    temperature: 0.3,
+                    maxTokens: 4000,
+                    topP: 0.9,
+                    freqPenalty: 0.1,
+                    presPenalty: 0.1
+                }
+            },
+            research: {
+                name: "🔍 Research",
+                base: "You are a research assistant and analyst. Help with finding information, analyzing sources, summarizing findings, and organizing research systematically. Provide comprehensive yet focused responses with proper citations when relevant.",
+                personality: "Be thorough and methodical, but also curious and engaging. Show enthusiasm for discovery and learning. Present research findings in an organized, accessible way that highlights key insights.",
+                parameters: {
+                    model: "deepseek-reasoner", 
+                    temperature: 0.5,
+                    maxTokens: 6000,
+                    topP: 0.95,
+                    freqPenalty: 0,
+                    presPenalty: 0
+                }
             },
             creative: {
+                name: "🎨 Creative",
                 base: "You are a creative writing assistant. Help with storytelling, poetry, creative projects, and artistic endeavors. Provide constructive feedback and inspire new ideas. Structure your responses to be engaging and imaginative.",
-                personality: "Be imaginative, inspiring, and enthusiastic about creative expression. Use vivid language and encourage experimentation. Show genuine interest in artistic vision and help bring ideas to life with passion."
-            },
-            analyst: {
-                base: "You are a data analyst and researcher. Provide thorough analysis, break down complex topics systematically, use logical reasoning, and support conclusions with evidence. Present findings clearly with proper structure.",
-                personality: "Be analytical and objective, but also approachable. Show curiosity about data patterns and insights. Present information in a way that's both rigorous and accessible, helping users understand the bigger picture."
-            },
-            teacher: {
-                base: "You are a patient teacher and tutor. Explain concepts clearly using examples, break down complex topics into digestible parts, and provide step-by-step guidance. Adapt explanations to the user's level.",
-                personality: "Be patient, encouraging, and supportive. Celebrate learning progress and create a safe space for questions. Use analogies and real-world examples to make concepts relatable and memorable."
-            },
-            researcher: {
-                base: "You are a research assistant. Help with finding information, analyzing sources, summarizing findings, and organizing research systematically. Provide comprehensive yet focused responses with proper citations when relevant.",
-                personality: "Be thorough and methodical, but also curious and engaging. Show enthusiasm for discovery and learning. Present research findings in an organized, accessible way that highlights key insights."
+                personality: "Be imaginative, inspiring, and enthusiastic about creative expression. Use vivid language and encourage experimentation. Show genuine interest in artistic vision and help bring ideas to life with passion.",
+                parameters: {
+                    model: "deepseek-reasoner",
+                    temperature: 0.8,
+                    maxTokens: 5000,
+                    topP: 0.95,
+                    freqPenalty: 0.3,
+                    presPenalty: 0.2
+                }
             }
         };
+
+        let currentWorkflow = null;
 
         function toggleSettings() {
             const panel = document.getElementById('settingsPanel');
@@ -1309,11 +1375,63 @@
             panel.style.display = isVisible ? 'none' : 'block';
         }
 
-        function setPreset(type) {
-            if (presets[type]) {
-                document.getElementById('basePrompt').value = presets[type].base;
-                document.getElementById('personalityPrompt').value = presets[type].personality;
+        function setWorkflow(workflowType) {
+            if (workflowPresets[workflowType]) {
+                const workflow = workflowPresets[workflowType];
+                currentWorkflow = workflowType;
+                
+                // Update prompts
+                document.getElementById('basePrompt').value = workflow.base;
+                document.getElementById('personalityPrompt').value = workflow.personality;
+                
+                // Update parameters
+                document.getElementById('model').value = workflow.parameters.model;
+                document.getElementById('temperature').value = workflow.parameters.temperature;
+                document.getElementById('maxTokens').value = workflow.parameters.maxTokens;
+                document.getElementById('topP').value = workflow.parameters.topP;
+                document.getElementById('freqPenalty').value = workflow.parameters.freqPenalty;
+                document.getElementById('presPenalty').value = workflow.parameters.presPenalty;
+                
+                // Update labels
+                updateTempLabel();
+                updateTopPLabel();
+                updateFreqLabel();
+                updatePresLabel();
+                
+                // Update workflow indicator
+                updateWorkflowIndicator();
+                
+                // Auto-save configuration
+                autoSaveConfig();
+                
+                showToast(`Switched to ${workflow.name} workflow`, 'success');
             }
+        }
+
+        function updateWorkflowIndicator() {
+            const workflowButtons = document.querySelectorAll('.workflow-btn');
+            workflowButtons.forEach(btn => btn.classList.remove('active'));
+            
+            if (currentWorkflow) {
+                const activeBtn = document.querySelector(`[onclick="setWorkflow('${currentWorkflow}')"]`);
+                if (activeBtn) {
+                    activeBtn.classList.add('active');
+                }
+            }
+        }
+
+        function setPreset(type) {
+            // Legacy function for compatibility - map to new workflow system
+            const presetMap = {
+                'coding': 'coding',
+                'creative': 'creative', 
+                'analyst': 'research',
+                'teacher': 'research',
+                'researcher': 'research'
+            };
+            
+            const workflowType = presetMap[type] || 'research';
+            setWorkflow(workflowType);
         }
         
         function switchPromptTab(tab) {
