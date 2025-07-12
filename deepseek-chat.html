@@ -564,18 +564,43 @@
             position: absolute;
             bottom: -25px;
             right: 60px;
-            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 11px;
             color: #9A9AB0;
             font-weight: 500;
-            transition: color 0.3s ease;
         }
 
-        .token-counter.warning {
-            color: #FF9800;
+        .token-progress-bar {
+            width: 60px;
+            height: 4px;
+            background: #3D3D5C;
+            border-radius: 2px;
+            overflow: hidden;
+            position: relative;
         }
 
-        .token-counter.danger {
-            color: #f44336;
+        .token-progress-fill {
+            height: 100%;
+            background: #4CAF50;
+            border-radius: 2px;
+            transition: width 0.3s ease, background-color 0.3s ease;
+            width: 0%;
+        }
+
+        .token-progress-fill.warning {
+            background: #FF9800;
+        }
+
+        .token-progress-fill.danger {
+            background: #f44336;
+        }
+
+        .token-text {
+            font-size: 10px;
+            color: #9A9AB0;
+            white-space: nowrap;
         }
 
         .keyboard-hint {
@@ -796,7 +821,17 @@
             .token-counter {
                 bottom: -20px;
                 right: 55px;
-                font-size: 11px;
+                font-size: 10px;
+                gap: 6px;
+            }
+
+            .token-progress-bar {
+                width: 45px;
+                height: 3px;
+            }
+
+            .token-text {
+                font-size: 9px;
             }
 
             .keyboard-hint {
@@ -974,7 +1009,12 @@
             <button class="send-button" id="sendButton" onclick="sendMessage()" disabled>
                 ➤
             </button>
-            <div class="token-counter" id="tokenCounter">0/8000 tokens</div>
+            <div class="token-counter" id="tokenCounter">
+                <div class="token-progress-bar">
+                    <div class="token-progress-fill" id="tokenProgressFill"></div>
+                </div>
+                <div class="token-text" id="tokenText">0/8000 (0%)</div>
+            </div>
             <div class="keyboard-hint">Ctrl+Enter to send • Esc to close • Alt+C copy • Alt+E edit</div>
         </div>
     </div>
@@ -1214,17 +1254,22 @@
         // Token counter management
         function updateTokenCounter(usedTokens, maxTokens = 8000) {
             totalTokens = usedTokens;
-            const counter = document.getElementById('tokenCounter');
+            const progressFill = document.getElementById('tokenProgressFill');
+            const tokenText = document.getElementById('tokenText');
             const percentage = (usedTokens / maxTokens) * 100;
             
-            counter.textContent = `${usedTokens}/${maxTokens} tokens`;
+            // Update progress bar width with animation
+            progressFill.style.width = `${Math.min(percentage, 100)}%`;
+            
+            // Update text with percentage
+            tokenText.textContent = `${usedTokens}/${maxTokens} (${Math.round(percentage)}%)`;
             
             // Update color based on usage
-            counter.className = 'token-counter';
+            progressFill.className = 'token-progress-fill';
             if (percentage >= 90) {
-                counter.classList.add('danger');
+                progressFill.classList.add('danger');
             } else if (percentage >= 75) {
-                counter.classList.add('warning');
+                progressFill.classList.add('warning');
             }
         }
 
