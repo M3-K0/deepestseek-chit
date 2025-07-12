@@ -527,6 +527,55 @@
             border-color: #f44336;
         }
 
+        .reply-btn:hover {
+            background: #9C27B0;
+            border-color: #9C27B0;
+        }
+
+        .bookmark-btn:hover {
+            background: #FF5722;
+            border-color: #FF5722;
+        }
+
+        .bookmark-btn.bookmarked {
+            background: #FF5722;
+            border-color: #FF5722;
+            color: white;
+        }
+
+        .export-btn:hover {
+            background: #607D8B;
+            border-color: #607D8B;
+        }
+
+        .message-wrapper.replied-to {
+            border-left: 3px solid #9C27B0;
+            padding-left: 12px;
+            margin-left: 8px;
+        }
+
+        .reply-indicator {
+            font-size: 11px;
+            color: #9C27B0;
+            margin-bottom: 4px;
+            font-style: italic;
+        }
+
+        .bookmarked-indicator {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: #FF5722;
+            color: white;
+            border-radius: 50%;
+            width: 12px;
+            height: 12px;
+            font-size: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
         .input-container {
             padding: 16px 20px 40px 20px;
             background: #2D2D44;
@@ -893,6 +942,11 @@
         <div class="sidebar-header">
             <span class="sidebar-title">Conversations</span>
             <button class="new-chat-btn" onclick="newConversation()">+ New</button>
+        </div>
+        <div style="padding: 8px 16px; border-bottom: 1px solid #2D2D44;">
+            <input type="text" id="messageSearch" placeholder="Search messages..." 
+                   style="width: 100%; padding: 6px 8px; border: 1px solid #4A4A6A; border-radius: 4px; background: #3D3D5C; color: white; font-size: 12px;"
+                   oninput="searchMessages(this.value)">
         </div>
         <div class="conversation-list" id="conversationList">
             <!-- Conversations will be populated here -->
@@ -1856,6 +1910,128 @@
             }
         }
 
+        // Enhanced message actions
+        let bookmarkedMessages = JSON.parse(localStorage.getItem('deepseek-bookmarks') || '[]');
+        let replyContext = null;
+
+        function replyToMessage(messageWrapper, content, isUser) {
+            replyContext = { content, isUser, wrapper: messageWrapper };
+            
+            // Add reply indicator to input
+            const messageInput = document.getElementById('messageInput');
+            const placeholder = `Replying to ${isUser ? 'your' : 'AI'} message: "${content.substring(0, 50)}${content.length > 50 ? '...' : ''}"`;
+            messageInput.placeholder = placeholder;
+            messageInput.focus();
+            
+            // Add visual indicator to the message being replied to
+            messageWrapper.classList.add('replied-to');
+            
+            showToast('Reply mode activated - send your message', 'info');
+        }
+
+        function clearReplyContext() {
+            if (replyContext) {
+                replyContext.wrapper.classList.remove('replied-to');
+                replyContext = null;
+                document.getElementById('messageInput').placeholder = 'Type your message...';
+            }
+        }
+
+        function toggleBookmark(messageWrapper, content) {
+            const messageId = content.substring(0, 100); // Use first 100 chars as ID
+            const bookmarkBtn = messageWrapper.querySelector('.bookmark-btn');
+            
+            const existingIndex = bookmarkedMessages.findIndex(b => b.id === messageId);
+            
+            if (existingIndex >= 0) {
+                // Remove bookmark
+                bookmarkedMessages.splice(existingIndex, 1);
+                bookmarkBtn.classList.remove('bookmarked');
+                messageWrapper.querySelector('.bookmarked-indicator')?.remove();
+                showToast('Bookmark removed', 'info');
+            } else {
+                // Add bookmark
+                bookmarkedMessages.push({
+                    id: messageId,
+                    content: content,
+                    timestamp: Date.now()
+                });
+                bookmarkBtn.classList.add('bookmarked');
+                
+                // Add visual indicator
+                const indicator = document.createElement('div');
+                indicator.className = 'bookmarked-indicator';
+                indicator.innerHTML = '★';
+                messageWrapper.style.position = 'relative';
+                messageWrapper.appendChild(indicator);
+                
+                showToast('Message bookmarked', 'success');
+            }
+            
+            localStorage.setItem('deepseek-bookmarks', JSON.stringify(bookmarkedMessages));
+        }
+
+        function exportMessage(content, isUser) {
+            const timestamp = new Date().toISOString().split('T')[0];
+            const author = isUser ? 'User' : 'AI';
+            
+            // Format options
+            const formats = {
+                text: `[${timestamp}] ${author}: ${content}`,
+                markdown: `**${author}** (${timestamp}):\n\n${content}\n\n---\n`
+            };
+            
+            // Create download for both formats
+            const textBlob = new Blob([formats.text], { type: 'text/plain' });
+            const markdownBlob = new Blob([formats.markdown], { type: 'text/markdown' });
+            
+            // Download text version
+            const textUrl = URL.createObjectURL(textBlob);
+            const textLink = document.createElement('a');
+            textLink.href = textUrl;
+            textLink.download = `message-${timestamp}-${author.toLowerCase()}.txt`;
+            document.body.appendChild(textLink);
+            textLink.click();
+            document.body.removeChild(textLink);
+            URL.revokeObjectURL(textUrl);
+            
+            showToast('Message exported as text file', 'success');
+        }
+
+        function searchMessages(searchTerm) {
+            const messageWrappers = document.querySelectorAll('.message-wrapper');
+            const trimmedTerm = searchTerm.trim().toLowerCase();
+            
+            if (!trimmedTerm) {
+                // Show all messages if search is empty
+                messageWrappers.forEach(wrapper => {
+                    wrapper.style.display = '';
+                    wrapper.style.backgroundColor = '';
+                });
+                return;
+            }
+            
+            let matchCount = 0;
+            messageWrappers.forEach(wrapper => {
+                const messageDiv = wrapper.querySelector('.message');
+                const content = messageDiv.textContent.toLowerCase();
+                
+                if (content.includes(trimmedTerm)) {
+                    wrapper.style.display = '';
+                    wrapper.style.backgroundColor = 'rgba(108, 99, 255, 0.1)'; // Highlight matches
+                    matchCount++;
+                } else {
+                    wrapper.style.display = 'none';
+                }
+            });
+            
+            if (matchCount > 0) {
+                showToast(`Found ${matchCount} message(s) matching "${searchTerm}"`, 'success', 2000);
+            } else {
+                showToast(`No messages found matching "${searchTerm}"`, 'info', 2000);
+            }
+        }
+
         function setApiKey() {
             const keyInput = document.getElementById('apiKey');
             apiKey = keyInput.value.trim();
@@ -1951,6 +2127,30 @@
                 copyBtn.onclick = () => copyMessage(content);
                 actionsDiv.appendChild(copyBtn);
                 
+                // Reply button for all messages
+                const replyBtn = document.createElement('button');
+                replyBtn.className = 'action-btn reply-btn';
+                replyBtn.innerHTML = '↩️';
+                replyBtn.title = 'Reply to this message';
+                replyBtn.onclick = () => replyToMessage(messageWrapper, content, isUser);
+                actionsDiv.appendChild(replyBtn);
+                
+                // Bookmark button for all messages
+                const bookmarkBtn = document.createElement('button');
+                bookmarkBtn.className = 'action-btn bookmark-btn';
+                bookmarkBtn.innerHTML = '⭐';
+                bookmarkBtn.title = 'Bookmark message';
+                bookmarkBtn.onclick = () => toggleBookmark(messageWrapper, content);
+                actionsDiv.appendChild(bookmarkBtn);
+                
+                // Export button for all messages
+                const exportBtn = document.createElement('button');
+                exportBtn.className = 'action-btn export-btn';
+                exportBtn.innerHTML = '💾';
+                exportBtn.title = 'Export message';
+                exportBtn.onclick = () => exportMessage(content, isUser);
+                actionsDiv.appendChild(exportBtn);
+                
                 // Delete button for all messages
                 const deleteBtn = document.createElement('button');
                 deleteBtn.className = 'action-btn delete-btn';
@@ -2010,8 +2210,18 @@
             
             if (!message || !isConnected || isThinking) return;
             
-            addMessage(message, true);
+            // Handle reply context
+            let displayMessage = message;
+            if (replyContext) {
+                const replyText = replyContext.content.substring(0, 100) + (replyContext.content.length > 100 ? '...' : '');
+                displayMessage = `↩️ Replying to: "${replyText}"\n\n${message}`;
+            }
+            
+            addMessage(displayMessage, true);
             messageInput.value = '';
+            
+            // Clear reply context after sending
+            clearReplyContext();
             
             isThinking = true;
             document.getElementById('sendButton').disabled = true;
