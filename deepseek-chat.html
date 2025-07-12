@@ -226,6 +226,36 @@
             color: white;
         }
 
+        .template-buttons {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            margin-top: 4px;
+        }
+
+        .template-btn {
+            background: #2D2D44;
+            border: 1px solid #4A4A6A;
+            border-radius: 4px;
+            color: #9A9AB0;
+            padding: 4px 8px;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-weight: 400;
+        }
+
+        .template-btn:hover {
+            background: #3D3D5C;
+            color: white;
+        }
+
+        .template-btn.active {
+            background: #FF9800;
+            border-color: #FF9800;
+            color: white;
+        }
+
         .api-setup {
             background: #2D2D44;
             padding: 16px 20px;
@@ -930,6 +960,15 @@
                 font-size: 11px;
                 padding: 5px 10px;
             }
+
+            .template-buttons {
+                gap: 4px;
+            }
+
+            .template-btn {
+                font-size: 10px;
+                padding: 3px 6px;
+            }
         }
     </style>
 </head>
@@ -963,6 +1002,13 @@
                 <button class="workflow-btn" onclick="setWorkflow('coding')">💻 Coding</button>
                 <button class="workflow-btn" onclick="setWorkflow('research')">🔍 Research</button>
                 <button class="workflow-btn" onclick="setWorkflow('creative')">🎨 Creative</button>
+            </div>
+            <div class="template-buttons">
+                <button class="template-btn" onclick="applyTemplate('meeting')">📅</button>
+                <button class="template-btn" onclick="applyTemplate('learning')">🎓</button>
+                <button class="template-btn" onclick="applyTemplate('brainstorm')">💡</button>
+                <button class="template-btn" onclick="applyTemplate('debug')">🐛</button>
+                <button class="template-btn" onclick="applyTemplate('planning')">📋</button>
             </div>
         </div>
         <div style="display: flex; gap: 8px;">
@@ -1069,6 +1115,21 @@
 - Integration with development tools and services</textarea>
                     <div style="margin-top: 10px; font-size: 12px; color: #9A9AB0;">
                         This context is included with every API call along with recent messages, but saved separately to reduce token usage.
+                    </div>
+                </div>
+                
+                <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #3D3D5C;">
+                    <label style="color: white; font-weight: 600; margin-bottom: 8px; display: block;">📋 Custom Templates</label>
+                    <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                        <input type="text" id="customTemplateName" placeholder="Template name..." 
+                               style="flex: 1; padding: 6px 8px; border: 1px solid #4A4A6A; border-radius: 4px; background: #3D3D5C; color: white; font-size: 12px;">
+                        <button onclick="saveCustomTemplate()" 
+                                style="padding: 6px 12px; border: none; border-radius: 4px; background: #6C63FF; color: white; font-size: 12px; cursor: pointer;">
+                            Save Current
+                        </button>
+                    </div>
+                    <div id="customTemplatesList" style="max-height: 100px; overflow-y: auto;">
+                        <!-- Custom templates will be populated here -->
                     </div>
                 </div>
                 
@@ -1295,9 +1356,16 @@
             document.getElementById('chatContainer').innerHTML = '';
             resetTokenCounter(); // Reset token counter for new conversation
             
-            // Add welcome message
-            const welcomeMsg = "👋 Hi! I'm DeepSeek R1 with full customization. Set your API key, configure your settings, and let's chat!";
-            addMessage(welcomeMsg, false);
+            // Clear template if this is a manual new conversation (not from template)
+            if (!currentTemplate) {
+                clearTemplate();
+            }
+            
+            // Add welcome message (unless template will add its own)
+            if (!currentTemplate) {
+                const welcomeMsg = "👋 Hi! I'm DeepSeek R1 with full customization. Set your API key, configure your settings, and let's chat!";
+                addMessage(welcomeMsg, false);
+            }
             
             updateConversationList();
             showToast('New conversation started', 'info');
@@ -1423,6 +1491,46 @@
 
         let currentWorkflow = null;
 
+        const sessionTemplates = {
+            meeting: {
+                name: "📅 Meeting",
+                description: "Meeting notes and action items",
+                initialPrompt: "I'm starting a meeting session. Please help me take structured notes, identify action items, and track decisions. Format responses in a clear, meeting-friendly structure.",
+                context: "Meeting session - focus on organization, clarity, and actionable outcomes.",
+                workflow: "research"
+            },
+            learning: {
+                name: "🎓 Learning",
+                description: "Study session with explanations",
+                initialPrompt: "I'm starting a learning session. Please explain concepts clearly, provide examples, and help me understand complex topics step by step. Ask clarifying questions when needed.",
+                context: "Learning session - prioritize clear explanations, examples, and knowledge building.",
+                workflow: "coding"
+            },
+            brainstorm: {
+                name: "💡 Brainstorm",
+                description: "Creative ideation and problem solving",
+                initialPrompt: "I'm starting a brainstorming session. Please help generate creative ideas, explore different approaches, and think outside the box. Encourage wild ideas and build on concepts.",
+                context: "Brainstorming session - focus on creativity, idea generation, and innovative thinking.",
+                workflow: "creative"
+            },
+            debug: {
+                name: "🐛 Debug",
+                description: "Technical troubleshooting session",
+                initialPrompt: "I'm starting a debugging session. Please help systematically analyze problems, suggest diagnostic steps, and provide methodical solutions. Focus on root cause analysis.",
+                context: "Debug session - systematic problem-solving, step-by-step analysis, and technical precision.",
+                workflow: "coding"
+            },
+            planning: {
+                name: "📋 Planning",
+                description: "Project and task planning session",
+                initialPrompt: "I'm starting a planning session. Please help break down goals into actionable steps, identify dependencies, and create structured plans. Focus on organization and feasibility.",
+                context: "Planning session - structured thinking, goal decomposition, and strategic organization.",
+                workflow: "research"
+            }
+        };
+
+        let currentTemplate = null;
+
         function toggleSettings() {
             const panel = document.getElementById('settingsPanel');
             const isVisible = panel.style.display === 'block';
@@ -1471,6 +1579,128 @@
                 if (activeBtn) {
                     activeBtn.classList.add('active');
                 }
+            }
+        }
+
+        function applyTemplate(templateType) {
+            if (sessionTemplates[templateType]) {
+                const template = sessionTemplates[templateType];
+                currentTemplate = templateType;
+                
+                // Apply associated workflow first
+                setWorkflow(template.workflow);
+                
+                // Update memory context with template context
+                document.getElementById('memoryContext').value = template.context;
+                
+                // Update template indicator
+                updateTemplateIndicator();
+                
+                // Auto-save configuration
+                autoSaveConfig();
+                
+                // Start new conversation with template
+                newConversation();
+                
+                // Add template initialization message
+                setTimeout(() => {
+                    addMessage(template.initialPrompt, true, false, true);
+                    showToast(`${template.name} template applied`, 'success');
+                }, 100);
+            }
+        }
+
+        function updateTemplateIndicator() {
+            const templateButtons = document.querySelectorAll('.template-btn');
+            templateButtons.forEach(btn => btn.classList.remove('active'));
+            
+            if (currentTemplate) {
+                const activeBtn = document.querySelector(`[onclick="applyTemplate('${currentTemplate}')"]`);
+                if (activeBtn) {
+                    activeBtn.classList.add('active');
+                }
+            }
+        }
+
+        function clearTemplate() {
+            currentTemplate = null;
+            updateTemplateIndicator();
+        }
+
+        // Custom template management
+        let customTemplates = JSON.parse(localStorage.getItem('deepseek-custom-templates') || '{}');
+
+        function saveCustomTemplate() {
+            const nameInput = document.getElementById('customTemplateName');
+            const name = nameInput.value.trim();
+            
+            if (!name) {
+                showToast('Please enter a template name', 'error');
+                return;
+            }
+            
+            const template = {
+                name: name,
+                description: `Custom template: ${name}`,
+                basePrompt: document.getElementById('basePrompt').value,
+                personalityPrompt: document.getElementById('personalityPrompt').value,
+                memoryContext: document.getElementById('memoryContext').value,
+                workflow: currentWorkflow,
+                created: Date.now()
+            };
+            
+            customTemplates[name] = template;
+            localStorage.setItem('deepseek-custom-templates', JSON.stringify(customTemplates));
+            
+            nameInput.value = '';
+            updateCustomTemplatesList();
+            showToast(`Template "${name}" saved`, 'success');
+        }
+
+        function loadCustomTemplate(name) {
+            const template = customTemplates[name];
+            if (!template) return;
+            
+            document.getElementById('basePrompt').value = template.basePrompt;
+            document.getElementById('personalityPrompt').value = template.personalityPrompt;
+            document.getElementById('memoryContext').value = template.memoryContext;
+            
+            if (template.workflow) {
+                setWorkflow(template.workflow);
+            }
+            
+            autoSaveConfig();
+            showToast(`Template "${name}" loaded`, 'success');
+        }
+
+        function deleteCustomTemplate(name) {
+            if (!confirm(`Delete template "${name}"?`)) return;
+            
+            delete customTemplates[name];
+            localStorage.setItem('deepseek-custom-templates', JSON.stringify(customTemplates));
+            updateCustomTemplatesList();
+            showToast(`Template "${name}" deleted`, 'info');
+        }
+
+        function updateCustomTemplatesList() {
+            const container = document.getElementById('customTemplatesList');
+            container.innerHTML = '';
+            
+            Object.keys(customTemplates).forEach(name => {
+                const template = customTemplates[name];
+                const templateDiv = document.createElement('div');
+                templateDiv.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px solid #3D3D5C; margin-bottom: 4px;';
+                
+                templateDiv.innerHTML = `
+                    <span style="color: white; font-size: 12px; cursor: pointer;" onclick="loadCustomTemplate('${name}')">${name}</span>
+                    <button onclick="deleteCustomTemplate('${name}')" style="background: #f44336; border: none; border-radius: 3px; color: white; padding: 2px 6px; font-size: 10px; cursor: pointer;">×</button>
+                `;
+                
+                container.appendChild(templateDiv);
+            });
+            
+            if (Object.keys(customTemplates).length === 0) {
+                container.innerHTML = '<div style="color: #9A9AB0; font-size: 11px; font-style: italic;">No custom templates saved</div>';
             }
         }
 
@@ -2618,6 +2848,7 @@
             loadDraft(); // Load saved draft on page refresh
             startDraftSaving(); // Start auto-saving drafts
             loadConversations(); // Load saved conversations
+            updateCustomTemplatesList(); // Load custom templates
             
             // Show share button on mobile
             if (navigator.share) {
