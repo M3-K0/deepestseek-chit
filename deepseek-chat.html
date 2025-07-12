@@ -256,6 +256,93 @@
             color: white;
         }
 
+        /* Focus Mode Styles */
+        .focus-mode {
+            background: #0F0F23 !important;
+        }
+
+        .focus-mode .sidebar {
+            display: none !important;
+        }
+
+        .focus-mode .header {
+            padding: 8px 20px !important;
+            background: #0F0F23 !important;
+            border-bottom: 1px solid #2D2D44 !important;
+        }
+
+        .focus-mode .workflow-buttons,
+        .focus-mode .template-buttons {
+            display: none !important;
+        }
+
+        .focus-mode .settings-btn {
+            display: none !important;
+        }
+
+        .focus-mode .sidebar-toggle {
+            display: none !important;
+        }
+
+        .focus-mode .chat-container {
+            background: #0F0F23 !important;
+        }
+
+        .focus-mode .input-container {
+            background: #0F0F23 !important;
+            border-top: 1px solid #2D2D44 !important;
+        }
+
+        .focus-timer {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(45, 45, 68, 0.9);
+            border: 1px solid #4A4A6A;
+            border-radius: 8px;
+            padding: 8px 12px;
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+        }
+
+        .focus-toggle {
+            background: #6C63FF;
+            border: none;
+            border-radius: 6px;
+            color: white;
+            padding: 6px 12px;
+            font-size: 12px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background 0.2s ease;
+        }
+
+        .focus-toggle:hover {
+            background: #5A52E5;
+        }
+
+        .focus-toggle.active {
+            background: #FF6B35;
+        }
+
+        .focus-stats {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(45, 45, 68, 0.9);
+            border: 1px solid #4A4A6A;
+            border-radius: 8px;
+            padding: 12px;
+            color: white;
+            font-size: 12px;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+            display: none;
+        }
+
         .api-setup {
             background: #2D2D44;
             padding: 16px 20px;
@@ -969,6 +1056,25 @@
                 font-size: 10px;
                 padding: 3px 6px;
             }
+
+            .focus-toggle {
+                font-size: 11px;
+                padding: 5px 10px;
+            }
+
+            .focus-timer {
+                top: 10px;
+                right: 10px;
+                padding: 6px 10px;
+                font-size: 12px;
+            }
+
+            .focus-stats {
+                bottom: 10px;
+                right: 10px;
+                padding: 8px;
+                font-size: 11px;
+            }
         }
     </style>
 </head>
@@ -1012,6 +1118,7 @@
             </div>
         </div>
         <div style="display: flex; gap: 8px;">
+            <button class="focus-toggle" id="focusToggle" onclick="toggleFocusMode()" title="Focus Mode">🎯 Focus</button>
             <button class="clear-btn" onclick="exportConversation()" title="Export to OneDrive">💾</button>
             <button class="clear-btn" onclick="shareConversation()" title="Share" style="display: none;" id="shareBtn">📤</button>
             <button class="clear-btn" onclick="importConversation()" title="Import from OneDrive">📁</button>
@@ -1115,6 +1222,23 @@
 - Integration with development tools and services</textarea>
                     <div style="margin-top: 10px; font-size: 12px; color: #9A9AB0;">
                         This context is included with every API call along with recent messages, but saved separately to reduce token usage.
+                    </div>
+                </div>
+                
+                <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #3D3D5C;">
+                    <label style="color: white; font-weight: 600; margin-bottom: 8px; display: block;">🎯 Focus Mode Settings</label>
+                    <div style="display: grid; gap: 8px; margin-bottom: 16px;">
+                        <label style="display: flex; align-items: center; gap: 8px; color: #9A9AB0; font-size: 12px;">
+                            <input type="checkbox" id="focusAutoTimer" onchange="updateFocusSettings()" checked style="accent-color: #6C63FF;">
+                            Show session timer
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; color: #9A9AB0; font-size: 12px;">
+                            <input type="checkbox" id="focusShowStats" onchange="updateFocusSettings()" checked style="accent-color: #6C63FF;">
+                            Show productivity stats
+                        </label>
+                        <div style="color: #9A9AB0; font-size: 11px; margin-top: 4px;">
+                            Shortcuts: F11 or Alt+F (toggle), Alt+S (stats), Alt+T (timer)
+                        </div>
                     </div>
                 </div>
                 
@@ -1530,6 +1654,14 @@
         };
 
         let currentTemplate = null;
+
+        // Focus Mode System
+        let focusMode = false;
+        let focusStartTime = null;
+        let focusTimer = null;
+        let focusSessionMessages = 0;
+        let totalFocusTime = parseInt(localStorage.getItem('deepseek-total-focus-time') || '0');
+        let focusSettings = JSON.parse(localStorage.getItem('deepseek-focus-settings') || '{"autoTimer": true, "showStats": true, "hideUI": true}');
 
         function toggleSettings() {
             const panel = document.getElementById('settingsPanel');
@@ -2262,6 +2394,129 @@
             }
         }
 
+        // Focus Mode Functions
+        function toggleFocusMode() {
+            focusMode = !focusMode;
+            const body = document.body;
+            const focusToggle = document.getElementById('focusToggle');
+            const focusTimer = document.getElementById('focusTimer');
+            const focusStats = document.getElementById('focusStats');
+
+            if (focusMode) {
+                // Enter focus mode
+                body.classList.add('focus-mode');
+                focusToggle.classList.add('active');
+                focusToggle.textContent = '🔍 Exit Focus';
+                
+                // Start focus session
+                startFocusSession();
+                
+                // Show timer if enabled
+                if (focusSettings.autoTimer) {
+                    focusTimer.style.display = 'block';
+                }
+                
+                showToast('Focus mode activated - minimal distractions', 'success');
+                
+                // Hide search when entering focus mode
+                const searchInput = document.getElementById('messageSearch');
+                if (searchInput) {
+                    searchInput.value = '';
+                    searchMessages(''); // Clear any active search
+                }
+                
+            } else {
+                // Exit focus mode
+                body.classList.remove('focus-mode');
+                focusToggle.classList.remove('active');
+                focusToggle.textContent = '🎯 Focus';
+                
+                // End focus session
+                endFocusSession();
+                
+                // Hide timer and stats
+                focusTimer.style.display = 'none';
+                focusStats.style.display = 'none';
+                
+                showToast('Focus mode deactivated', 'info');
+            }
+        }
+
+        function startFocusSession() {
+            focusStartTime = Date.now();
+            focusSessionMessages = 0;
+            
+            // Start timer update
+            focusTimer = setInterval(updateFocusTimer, 1000);
+            
+            // Update message counter on each new message
+            updateFocusStats();
+        }
+
+        function endFocusSession() {
+            if (focusTimer) {
+                clearInterval(focusTimer);
+                focusTimer = null;
+            }
+            
+            if (focusStartTime) {
+                const sessionDuration = Date.now() - focusStartTime;
+                totalFocusTime += sessionDuration;
+                localStorage.setItem('deepseek-total-focus-time', totalFocusTime.toString());
+                
+                const minutes = Math.floor(sessionDuration / 60000);
+                showToast(`Focus session completed: ${minutes} minutes, ${focusSessionMessages} messages`, 'success');
+            }
+        }
+
+        function updateFocusTimer() {
+            if (!focusStartTime) return;
+            
+            const elapsed = Date.now() - focusStartTime;
+            const minutes = Math.floor(elapsed / 60000);
+            const seconds = Math.floor((elapsed % 60000) / 1000);
+            
+            const timerDisplay = document.getElementById('timerDisplay');
+            timerDisplay.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        function updateFocusStats() {
+            if (!focusMode || !focusSettings.showStats) return;
+            
+            const focusStats = document.getElementById('focusStats');
+            const messageCount = document.getElementById('messageCount');
+            const sessionDuration = document.getElementById('sessionDuration');
+            
+            messageCount.textContent = `Messages: ${focusSessionMessages}`;
+            
+            if (focusStartTime) {
+                const elapsed = Date.now() - focusStartTime;
+                const minutes = Math.floor(elapsed / 60000);
+                const seconds = Math.floor((elapsed % 60000) / 1000);
+                sessionDuration.textContent = `Duration: ${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            }
+            
+            focusStats.style.display = 'block';
+        }
+
+        function incrementFocusMessageCount() {
+            if (focusMode) {
+                focusSessionMessages++;
+                updateFocusStats();
+            }
+        }
+
+        function updateFocusSettings() {
+            focusSettings.autoTimer = document.getElementById('focusAutoTimer').checked;
+            focusSettings.showStats = document.getElementById('focusShowStats').checked;
+            localStorage.setItem('deepseek-focus-settings', JSON.stringify(focusSettings));
+        }
+
+        function loadFocusSettings() {
+            document.getElementById('focusAutoTimer').checked = focusSettings.autoTimer;
+            document.getElementById('focusShowStats').checked = focusSettings.showStats;
+        }
+
         function setApiKey() {
             const keyInput = document.getElementById('apiKey');
             apiKey = keyInput.value.trim();
@@ -2419,6 +2674,9 @@
                         content: content,
                         timestamp: Date.now()
                     });
+                    
+                    // Increment focus mode message counter
+                    incrementFocusMessageCount();
                 }
                 
                 // Only auto-scroll if user is near bottom or if this is a new message from user
@@ -2838,6 +3096,32 @@
                 }
                 return;
             }
+
+            // F11 or Alt+F: Toggle focus mode
+            if (e.key === 'F11' || (e.altKey && e.key === 'f')) {
+                e.preventDefault();
+                toggleFocusMode();
+                return;
+            }
+
+            // Focus mode specific shortcuts
+            if (focusMode) {
+                // Alt+S: Show/hide stats
+                if (e.altKey && e.key === 's') {
+                    e.preventDefault();
+                    const focusStats = document.getElementById('focusStats');
+                    focusStats.style.display = focusStats.style.display === 'none' ? 'block' : 'none';
+                    return;
+                }
+                
+                // Alt+T: Show/hide timer
+                if (e.altKey && e.key === 't') {
+                    e.preventDefault();
+                    const focusTimer = document.getElementById('focusTimer');
+                    focusTimer.style.display = focusTimer.style.display === 'none' ? 'block' : 'none';
+                    return;
+                }
+            }
         });
 
         // Initialize
@@ -2849,6 +3133,7 @@
             startDraftSaving(); // Start auto-saving drafts
             loadConversations(); // Load saved conversations
             updateCustomTemplatesList(); // Load custom templates
+            loadFocusSettings(); // Load focus mode settings
             
             // Show share button on mobile
             if (navigator.share) {
@@ -2937,5 +3222,17 @@
 
     <!-- Toast Container -->
     <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Focus Mode Elements -->
+    <div class="focus-timer" id="focusTimer" style="display: none;">
+        <div id="timerDisplay">00:00</div>
+        <div style="font-size: 10px; color: #9A9AB0; text-align: center;">Focus Session</div>
+    </div>
+
+    <div class="focus-stats" id="focusStats">
+        <div style="font-weight: 600; margin-bottom: 4px;">Session Stats</div>
+        <div id="messageCount">Messages: 0</div>
+        <div id="sessionDuration">Duration: 00:00</div>
+    </div>
 </body>
 </html>
