@@ -1,0 +1,3468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+    <title>DeepSeek R1 Custom Chat</title>
+    <meta name="theme-color" content="#1A1A2E">
+    <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIkRlZXBTZWVrIFIxIEN1c3RvbSBDaGF0IiwKICAic2hvcnRfbmFtZSI6ICJEZWVwU2VlayBDaGF0IiwKICAiZGVzY3JpcHRpb24iOiAiQ3VzdG9tIERlZXBTZWVrIFIxIENoYXQgSW50ZXJmYWNlIiwKICAic3RhcnRfdXJsIjogIi8iLAogICJkaXNwbGF5IjogInN0YW5kYWxvbmUiLAogICJiYWNrZ3JvdW5kX2NvbG9yIjogIiMxQTFBMkUiLAogICJ0aGVtZV9jb2xvciI6ICIjMUExQTJFIiwKICAiaWNvbnMiOiBbCiAgICB7CiAgICAgICJzcmMiOiAiZGF0YTppbWFnZS9zdmcreG1sO2Jhc2U2NCxQSE4yWnlCM2FXUjBhRDBpTmpRaUlHaGxhV2RvZEQwaU5qUWlJSFpwWlhkQ2IzZzlJakFnTUNCMk5qUWdOalFpSUdacGJHdzlJaU0yUXpZelJrWWlQanh5WldOMElIZHBaSFJvUFNJMk5DSWdhR1ZwWjJoMFBTSTJOQ0lpSUhKNFBTSTRJaUJtYVd4c1BTSWpOa00yTTBaR0lpOCtQQzl6ZG1jKyIsInNpemVzIjogIjY0eDY0IiwKICAgICAgInR5cGUiOiAiaW1hZ2Uvc3ZnK3htbCIKICAgIH0KICBdCn0=">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1A1A2E;
+            min-height: 100vh;
+            display: flex;
+            margin: 0;
+            padding: 0;
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+
+        .main-container {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-width: 0;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 250px;
+            background: #16213E;
+            border-right: 2px solid #2D2D44;
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.3s ease;
+            flex-shrink: 0;
+        }
+
+        .sidebar.collapsed {
+            transform: translateX(-100%);
+            width: 0;
+        }
+
+        .sidebar-header {
+            padding: 16px;
+            border-bottom: 1px solid #2D2D44;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .sidebar-title {
+            color: white;
+            font-weight: 600;
+            font-size: 16px;
+        }
+
+        .new-chat-btn {
+            background: #6C63FF;
+            border: none;
+            border-radius: 6px;
+            color: white;
+            padding: 8px 12px;
+            font-size: 12px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .new-chat-btn:hover {
+            background: #5A52E5;
+        }
+
+        .conversation-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+        }
+
+        .conversation-item {
+            padding: 12px;
+            margin-bottom: 4px;
+            border-radius: 6px;
+            cursor: pointer;
+            color: #9A9AB0;
+            font-size: 14px;
+            transition: all 0.2s;
+            word-wrap: break-word;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .conversation-item:hover {
+            background: #2D2D44;
+            color: white;
+        }
+
+        .conversation-item.active {
+            background: #6C63FF;
+            color: white;
+        }
+
+        .conversation-title {
+            flex: 1;
+            margin-right: 8px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .conversation-delete {
+            background: none;
+            border: none;
+            color: inherit;
+            cursor: pointer;
+            font-size: 16px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .conversation-item:hover .conversation-delete {
+            opacity: 0.7;
+        }
+
+        .conversation-delete:hover {
+            opacity: 1;
+        }
+
+        .message-timestamp {
+            font-size: 11px;
+            color: #6A6A7A;
+            margin-top: 4px;
+            text-align: right;
+            opacity: 0.7;
+            font-weight: 400;
+        }
+
+        .user-message .message-timestamp {
+            text-align: left;
+        }
+
+        .sidebar-toggle {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1001;
+            background: #3D3D5C;
+            border: 2px solid #4A4A6A;
+            border-radius: 8px;
+            width: 40px;
+            height: 40px;
+            color: white;
+            cursor: pointer;
+            font-size: 18px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .sidebar-toggle:hover {
+            background: #4A4A6A;
+        }
+
+        .header {
+            background: #2D2D44;
+            padding: 16px 20px;
+            text-align: center;
+            color: white;
+            border-bottom: 2px solid #3D3D5C;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            flex-shrink: 0;
+        }
+
+        .settings-btn {
+            background: #3D3D5C;
+            border: 2px solid #4A4A6A;
+            border-radius: 8px;
+            width: 40px;
+            height: 40px;
+            color: white;
+            cursor: pointer;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .settings-btn:hover {
+            background: #4A4A6A;
+        }
+
+        .workflow-buttons {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .workflow-btn {
+            background: #3D3D5C;
+            border: 2px solid #4A4A6A;
+            border-radius: 6px;
+            color: #9A9AB0;
+            padding: 6px 12px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-weight: 500;
+        }
+
+        .workflow-btn:hover {
+            background: #4A4A6A;
+            color: white;
+        }
+
+        .workflow-btn.active {
+            background: #6C63FF;
+            border-color: #6C63FF;
+            color: white;
+        }
+
+        .template-buttons {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            margin-top: 4px;
+        }
+
+        .template-btn {
+            background: #2D2D44;
+            border: 1px solid #4A4A6A;
+            border-radius: 4px;
+            color: #9A9AB0;
+            padding: 4px 8px;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-weight: 400;
+        }
+
+        .template-btn:hover {
+            background: #3D3D5C;
+            color: white;
+        }
+
+        .template-btn.active {
+            background: #FF9800;
+            border-color: #FF9800;
+            color: white;
+        }
+
+        /* Focus Mode Styles */
+        .focus-mode {
+            background: #0F0F23 !important;
+        }
+
+        .focus-mode .sidebar {
+            display: none !important;
+        }
+
+        .focus-mode .header {
+            padding: 8px 20px !important;
+            background: #0F0F23 !important;
+            border-bottom: 1px solid #2D2D44 !important;
+        }
+
+        .focus-mode .workflow-buttons,
+        .focus-mode .template-buttons {
+            display: none !important;
+        }
+
+        .focus-mode .settings-btn {
+            display: none !important;
+        }
+
+        .focus-mode .sidebar-toggle {
+            display: none !important;
+        }
+
+        .focus-mode .chat-container {
+            background: #0F0F23 !important;
+        }
+
+        .focus-mode .input-container {
+            background: #0F0F23 !important;
+            border-top: 1px solid #2D2D44 !important;
+        }
+
+        .focus-timer {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(45, 45, 68, 0.9);
+            border: 1px solid #4A4A6A;
+            border-radius: 8px;
+            padding: 8px 12px;
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+        }
+
+        .focus-toggle {
+            background: #6C63FF;
+            border: none;
+            border-radius: 6px;
+            color: white;
+            padding: 6px 12px;
+            font-size: 12px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background 0.2s ease;
+        }
+
+        .focus-toggle:hover {
+            background: #5A52E5;
+        }
+
+        .focus-toggle.active {
+            background: #FF6B35;
+        }
+
+        .focus-stats {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(45, 45, 68, 0.9);
+            border: 1px solid #4A4A6A;
+            border-radius: 8px;
+            padding: 12px;
+            color: white;
+            font-size: 12px;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+            display: none;
+        }
+
+        /* Image Upload Styles */
+        .image-upload-btn {
+            background: #3D3D5C;
+            border: 2px solid #4A4A6A;
+            border-radius: 8px;
+            width: 40px;
+            height: 40px;
+            color: white;
+            cursor: pointer;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .image-upload-btn:hover {
+            background: #4A4A6A;
+            border-color: #6C63FF;
+        }
+
+        .image-upload-btn.has-image {
+            background: #6C63FF;
+            border-color: #6C63FF;
+        }
+
+        .image-preview-container {
+            position: relative;
+            margin-bottom: 8px;
+        }
+
+        .image-preview {
+            max-width: 300px;
+            max-height: 200px;
+            border-radius: 8px;
+            border: 2px solid #4A4A6A;
+            object-fit: contain;
+        }
+
+        .image-remove-btn {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: #f44336;
+            border: none;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            color: white;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .message-image {
+            max-width: 100%;
+            max-height: 400px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            object-fit: contain;
+            cursor: pointer;
+        }
+
+        .image-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+
+        .image-modal img {
+            max-width: 90%;
+            max-height: 90%;
+            object-fit: contain;
+        }
+
+        .api-setup {
+            background: #2D2D44;
+            padding: 16px 20px;
+            display: flex;
+            gap: 12px;
+            border-bottom: 2px solid #3D3D5C;
+            flex-shrink: 0;
+        }
+
+        .api-setup input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 2px solid #4A4A6A;
+            border-radius: 8px;
+            background: #3D3D5C;
+            color: white;
+            font-size: 14px;
+        }
+        
+        .api-setup input:focus {
+            outline: none;
+            border-color: #6C63FF;
+        }
+        
+        .api-setup input::placeholder {
+            color: #9A9AB0;
+        }
+
+        .api-setup button {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            background: #6C63FF;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .api-setup button:hover {
+            background: #5A52E5;
+        }
+
+        .settings-panel {
+            background: #2D2D44;
+            padding: 20px;
+            display: none;
+            border-bottom: 2px solid #3D3D5C;
+            max-height: 60vh;
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+
+        .settings-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .setting-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .setting-group label {
+            font-weight: 600;
+            color: white;
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        .setting-group input, .setting-group select {
+            padding: 8px 12px;
+            border: 2px solid #4A4A6A;
+            border-radius: 6px;
+            font-size: 14px;
+            background: #3D3D5C;
+            color: white;
+        }
+        
+        .setting-group input:focus, .setting-group select:focus {
+            outline: none;
+            border-color: #6C63FF;
+        }
+        
+        .setting-group input[type="range"] {
+            -webkit-appearance: none;
+            height: 6px;
+            background: #4A4A6A;
+            border-radius: 3px;
+            outline: none;
+            border: none;
+        }
+        
+        .setting-group input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            background: #6C63FF;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        .prompt-section {
+            grid-column: 1 / -1;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        
+        .prompt-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        
+        .prompt-tab {
+            padding: 8px 16px;
+            border: 2px solid #4A4A6A;
+            border-radius: 6px;
+            background: #3D3D5C;
+            color: #9A9AB0;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        
+        .prompt-tab.active {
+            background: #6C63FF;
+            color: white;
+            border-color: #6C63FF;
+        }
+        
+        .prompt-content {
+            display: none;
+        }
+        
+        .prompt-content.active {
+            display: block;
+        }
+
+        .prompt-textarea {
+            width: 100%;
+            min-height: 100px;
+            padding: 12px;
+            border: 2px solid #4A4A6A;
+            border-radius: 6px;
+            font-size: 14px;
+            resize: vertical;
+            background: #3D3D5C;
+            color: white;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.5;
+            box-sizing: border-box;
+        }
+        
+        .prompt-textarea:focus {
+            outline: none;
+            border-color: #6C63FF;
+        }
+        
+        .prompt-textarea::placeholder {
+            color: #9A9AB0;
+        }
+
+        .preset-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+
+        .preset-btn {
+            padding: 8px 14px;
+            border: 2px solid #4A4A6A;
+            border-radius: 16px;
+            background: #3D3D5C;
+            color: white;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .preset-btn:hover {
+            background: #6C63FF;
+            border-color: #6C63FF;
+        }
+
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 16px 20px;
+            padding-bottom: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            background: #1A1A2E;
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
+            height: 0; /* Forces flex to work properly */
+        }
+
+        .message {
+            max-width: 85%;
+            padding: 15px 20px;
+            border-radius: 20px;
+            font-size: 16px;
+            line-height: 1.4;
+            word-wrap: break-word;
+        }
+
+        .user-message {
+            background: #6C63FF;
+            margin-left: auto;
+            border-bottom-right-radius: 5px;
+            color: white;
+        }
+
+        .bot-message {
+            background: #2D2D44;
+            border: 2px solid #3D3D5C;
+            margin-right: auto;
+            border-bottom-left-radius: 5px;
+            color: white;
+        }
+
+        .thinking {
+            background: rgba(255, 193, 7, 0.2);
+            border: 1px solid rgba(255, 193, 7, 0.4);
+            color: #fff3cd;
+            font-style: italic;
+        }
+
+        .message-wrapper {
+            display: flex;
+            flex-direction: column;
+            max-width: 85%;
+            margin-bottom: 12px;
+        }
+
+        .message-wrapper.user {
+            margin-left: auto;
+            align-items: flex-end;
+        }
+
+        .message-wrapper.bot {
+            margin-right: auto;
+            align-items: flex-start;
+        }
+
+        .message-actions {
+            display: flex;
+            gap: 6px;
+            margin-top: 6px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .message-wrapper:hover .message-actions {
+            opacity: 1;
+        }
+
+        .action-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            color: #ccc;
+            cursor: pointer;
+            font-size: 12px;
+            padding: 4px 8px;
+            transition: all 0.2s;
+        }
+
+        .action-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+
+        .retry-btn:hover {
+            background: #6C63FF;
+            border-color: #6C63FF;
+        }
+
+        .copy-btn:hover {
+            background: #4CAF50;
+            border-color: #4CAF50;
+        }
+
+        .edit-btn:hover {
+            background: #FF9800;
+            border-color: #FF9800;
+        }
+
+        .delete-btn:hover {
+            background: #f44336;
+            border-color: #f44336;
+        }
+
+        .reply-btn:hover {
+            background: #9C27B0;
+            border-color: #9C27B0;
+        }
+
+        .bookmark-btn:hover {
+            background: #FF5722;
+            border-color: #FF5722;
+        }
+
+        .bookmark-btn.bookmarked {
+            background: #FF5722;
+            border-color: #FF5722;
+            color: white;
+        }
+
+        .export-btn:hover {
+            background: #607D8B;
+            border-color: #607D8B;
+        }
+
+        .message-wrapper.replied-to {
+            border-left: 3px solid #9C27B0;
+            padding-left: 12px;
+            margin-left: 8px;
+        }
+
+        .reply-indicator {
+            font-size: 11px;
+            color: #9C27B0;
+            margin-bottom: 4px;
+            font-style: italic;
+        }
+
+        .bookmarked-indicator {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: #FF5722;
+            color: white;
+            border-radius: 50%;
+            width: 12px;
+            height: 12px;
+            font-size: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .input-container {
+            padding: 16px 20px 40px 20px;
+            background: #2D2D44;
+            border-top: 2px solid #3D3D5C;
+            flex-shrink: 0;
+            position: sticky;
+            bottom: 0;
+            z-index: 100;
+        }
+
+        .input-wrapper {
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+        }
+
+        .message-input {
+            flex: 1;
+            padding: 14px 18px;
+            border: 2px solid #4A4A6A;
+            border-radius: 12px;
+            background: #3D3D5C;
+            color: white;
+            font-size: 16px;
+            resize: none;
+            min-height: 50px;
+            max-height: 120px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        
+        .message-input:focus {
+            outline: none;
+            border-color: #6C63FF;
+        }
+        
+        .message-input::placeholder {
+            color: #9A9AB0;
+        }
+
+        .send-button {
+            width: 50px;
+            height: 50px;
+            border: none;
+            border-radius: 12px;
+            background: #6C63FF;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .send-button:hover {
+            background: #5A52E5;
+        }
+
+        .send-button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .token-counter {
+            position: absolute;
+            bottom: -25px;
+            right: 60px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 11px;
+            color: #9A9AB0;
+            font-weight: 500;
+        }
+
+        .token-progress-bar {
+            width: 60px;
+            height: 4px;
+            background: #3D3D5C;
+            border-radius: 2px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .token-progress-fill {
+            height: 100%;
+            background: #4CAF50;
+            border-radius: 2px;
+            transition: width 0.3s ease, background-color 0.3s ease;
+            width: 0%;
+        }
+
+        .token-progress-fill.warning {
+            background: #FF9800;
+        }
+
+        .token-progress-fill.danger {
+            background: #f44336;
+        }
+
+        .token-text {
+            font-size: 10px;
+            color: #9A9AB0;
+            white-space: nowrap;
+        }
+
+        .keyboard-hint {
+            position: absolute;
+            bottom: -25px;
+            left: 0;
+            font-size: 10px;
+            color: #6A6A7A;
+            opacity: 0.5;
+            font-weight: 400;
+        }
+
+        .input-wrapper {
+            position: relative;
+        }
+
+        .status {
+            padding: 8px 20px;
+            text-align: center;
+            color: #9A9AB0;
+            font-size: 14px;
+            background: #2D2D44;
+            border-bottom: 1px solid #3D3D5C;
+            flex-shrink: 0;
+        }
+
+        .connected { color: #4CAF50; }
+        .error { color: #f44336; }
+
+        .clear-btn {
+            background: #3D3D5C;
+            border: 2px solid #4A4A6A;
+            border-radius: 8px;
+            width: 40px;
+            height: 40px;
+            color: white;
+            cursor: pointer;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .clear-btn:hover {
+            background: #D32F2F;
+            border-color: #D32F2F;
+        }
+
+        /* Toast Container */
+        .toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-width: 350px;
+            pointer-events: none;
+        }
+
+        .toast {
+            background: #2D2D44;
+            border: 2px solid #4A4A6A;
+            border-radius: 8px;
+            padding: 12px 16px;
+            color: white;
+            font-size: 14px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            transform: translateX(100%);
+            transition: transform 0.3s ease, opacity 0.3s ease;
+            pointer-events: auto;
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .toast.show {
+            transform: translateX(0);
+            opacity: 1;
+        }
+
+        .toast.success {
+            border-color: #4CAF50;
+            background: #1B2A1B;
+            color: #A5D6A7;
+        }
+
+        .toast.error {
+            border-color: #f44336;
+            background: #2A1B1B;
+            color: #FFCDD2;
+        }
+
+        .toast.info {
+            border-color: #2196F3;
+            background: #1B1F2A;
+            color: #BBDEFB;
+        }
+
+        .toast-icon {
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+
+        .toast-message {
+            flex: 1;
+        }
+
+        /* Typing animation */
+        .typing-indicator {
+            display: inline-block;
+            opacity: 0.6;
+            animation: typing 1.4s infinite;
+        }
+
+        @keyframes typing {
+            0%, 60% { opacity: 0.6; }
+            30% { opacity: 1; }
+        }
+
+        .streaming-cursor {
+            display: inline-block;
+            width: 2px;
+            height: 1em;
+            background: #6C63FF;
+            margin-left: 2px;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                height: 100vh;
+                z-index: 1000;
+                transform: translateX(-100%);
+                width: 280px;
+            }
+
+            .sidebar.show {
+                transform: translateX(0);
+            }
+
+            .sidebar-toggle {
+                display: flex;
+            }
+
+            .settings-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .message-wrapper {
+                max-width: 90%;
+            }
+            
+            .message {
+                font-size: 15px;
+            }
+            
+            .message-actions {
+                opacity: 1;
+            }
+            
+            .input-container {
+                padding: 16px 16px 35px 16px;
+            }
+            
+            .header {
+                padding: 16px;
+            }
+            
+            .api-setup {
+                padding: 16px;
+                flex-direction: column;
+            }
+            
+            .api-setup input {
+                margin-bottom: 12px;
+            }
+            
+            .settings-panel {
+                padding: 20px;
+            }
+            
+            .prompt-tabs {
+                flex-wrap: wrap;
+            }
+            
+            .preset-buttons {
+                gap: 8px;
+            }
+            
+            .preset-btn {
+                font-size: 11px;
+                padding: 8px 12px;
+            }
+
+            .toast-container {
+                bottom: 10px;
+                right: 10px;
+                left: 10px;
+                max-width: none;
+            }
+
+            .toast {
+                font-size: 13px;
+                padding: 10px 14px;
+            }
+
+            .token-counter {
+                bottom: -20px;
+                right: 55px;
+                font-size: 10px;
+                gap: 6px;
+            }
+
+            .token-progress-bar {
+                width: 45px;
+                height: 3px;
+            }
+
+            .token-text {
+                font-size: 9px;
+            }
+
+            .keyboard-hint {
+                font-size: 9px;
+                bottom: -20px;
+                left: 0;
+                max-width: 200px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+            .workflow-buttons {
+                gap: 6px;
+            }
+
+            .workflow-btn {
+                font-size: 11px;
+                padding: 5px 10px;
+            }
+
+            .template-buttons {
+                gap: 4px;
+            }
+
+            .template-btn {
+                font-size: 10px;
+                padding: 3px 6px;
+            }
+
+            .focus-toggle {
+                font-size: 11px;
+                padding: 5px 10px;
+            }
+
+            .focus-timer {
+                top: 10px;
+                right: 10px;
+                padding: 6px 10px;
+                font-size: 12px;
+            }
+
+            .focus-stats {
+                bottom: 10px;
+                right: 10px;
+                padding: 8px;
+                font-size: 11px;
+            }
+
+            .image-upload-btn {
+                width: 36px;
+                height: 36px;
+                font-size: 14px;
+            }
+
+            .image-preview {
+                max-width: 250px;
+                max-height: 150px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Mobile sidebar toggle -->
+    <button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
+
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <span class="sidebar-title">Conversations</span>
+            <button class="new-chat-btn" onclick="newConversation()">+ New</button>
+        </div>
+        <div style="padding: 8px 16px; border-bottom: 1px solid #2D2D44;">
+            <input type="text" id="messageSearch" placeholder="Search messages..." 
+                   style="width: 100%; padding: 6px 8px; border: 1px solid #4A4A6A; border-radius: 4px; background: #3D3D5C; color: white; font-size: 12px;"
+                   oninput="searchMessages(this.value)">
+        </div>
+        <div class="conversation-list" id="conversationList">
+            <!-- Conversations will be populated here -->
+        </div>
+    </div>
+
+    <!-- Main container -->
+    <div class="main-container">
+        <div class="header">
+        <button class="settings-btn" onclick="toggleSettings()">⚙️</button>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+            <h1>🤖 DeepSeek R1 Custom</h1>
+            <div class="workflow-buttons">
+                <button class="workflow-btn" onclick="setWorkflow('coding')">💻 Coding</button>
+                <button class="workflow-btn" onclick="setWorkflow('research')">🔍 Research</button>
+                <button class="workflow-btn" onclick="setWorkflow('creative')">🎨 Creative</button>
+            </div>
+            <div class="template-buttons">
+                <button class="template-btn" onclick="applyTemplate('meeting')">📅</button>
+                <button class="template-btn" onclick="applyTemplate('learning')">🎓</button>
+                <button class="template-btn" onclick="applyTemplate('brainstorm')">💡</button>
+                <button class="template-btn" onclick="applyTemplate('debug')">🐛</button>
+                <button class="template-btn" onclick="applyTemplate('planning')">📋</button>
+            </div>
+        </div>
+        <div style="display: flex; gap: 8px;">
+            <button class="focus-toggle" id="focusToggle" onclick="toggleFocusMode()" title="Focus Mode">🎯 Focus</button>
+            <button class="clear-btn" onclick="exportConversation()" title="Export to OneDrive">💾</button>
+            <button class="clear-btn" onclick="shareConversation()" title="Share" style="display: none;" id="shareBtn">📤</button>
+            <button class="clear-btn" onclick="importConversation()" title="Import from OneDrive">📁</button>
+            <button class="clear-btn" id="changeApiKeyBtn" onclick="changeApiKey()" style="display: none;" title="Change API Key">🔑</button>
+            <button class="clear-btn" onclick="clearChat()">🗑️</button>
+        </div>
+    </div>
+
+    <div class="api-setup" id="apiSetup">
+        <input type="password" id="apiKey" placeholder="Enter your DeepSeek API key..." />
+        <button onclick="setApiKey()">Set Key</button>
+    </div>
+
+    <div class="settings-panel" id="settingsPanel">
+        <div class="settings-grid">
+            <div class="setting-group">
+                <label>Model</label>
+                <select id="model">
+                    <option value="deepseek-reasoner">DeepSeek R1 (Reasoner)</option>
+                    <option value="deepseek-chat">DeepSeek Chat</option>
+                </select>
+            </div>
+            
+            <div class="setting-group">
+                <label>Temperature</label>
+                <input type="range" id="temperature" min="0" max="2" step="0.1" value="0.7" oninput="updateTempLabel()">
+                <span id="tempLabel">0.7</span>
+            </div>
+            
+            <div class="setting-group">
+                <label>Max Tokens</label>
+                <input type="number" id="maxTokens" value="4000" min="1" max="8000">
+            </div>
+            
+            <div class="setting-group">
+                <label>Top P</label>
+                <input type="range" id="topP" min="0" max="1" step="0.05" value="0.95" oninput="updateTopPLabel()">
+                <span id="topPLabel">0.95</span>
+            </div>
+            
+            <div class="setting-group">
+                <label>Frequency Penalty</label>
+                <input type="range" id="freqPenalty" min="-2" max="2" step="0.1" value="0" oninput="updateFreqLabel()">
+                <span id="freqLabel">0.0</span>
+            </div>
+            
+            <div class="setting-group">
+                <label>Presence Penalty</label>
+                <input type="range" id="presPenalty" min="-2" max="2" step="0.1" value="0" oninput="updatePresLabel()">
+                <span id="presLabel">0.0</span>
+            </div>
+            
+            <div class="setting-group">
+                <label>Configuration</label>
+                <div style="display: flex; gap: 8px; margin-top: 8px;">
+                    <button class="preset-btn" onclick="saveConfig()" style="flex: 1;">💾 Save Config</button>
+                    <button class="preset-btn" onclick="loadConfig()" style="flex: 1;">📂 Load Config</button>
+                    <button class="preset-btn" onclick="resetConfig()" style="flex: 1;">🔄 Reset</button>
+                </div>
+                <input type="file" id="configFile" accept=".json" style="display: none;" onchange="handleConfigFile(event)">
+            </div>
+            
+            <div class="setting-group prompt-section">
+                <label>AI Personality & Behavior</label>
+                
+                <div class="prompt-tabs">
+                    <button class="prompt-tab active" onclick="switchPromptTab('base')">📋 Base Instructions</button>
+                    <button class="prompt-tab" onclick="switchPromptTab('personality')">🎭 Personality</button>
+                    <button class="prompt-tab" onclick="switchPromptTab('memory')">🧠 Memory Context</button>
+                </div>
+                
+                <div class="prompt-content active" id="basePromptContent">
+                    <textarea id="basePrompt" class="prompt-textarea" placeholder="Enter core instructions for how the AI should respond (e.g., format, length, technical level)...">You are a helpful AI assistant. Provide clear, accurate, and well-structured responses. Be concise but thorough in your explanations.</textarea>
+                </div>
+                
+                <div class="prompt-content" id="personalityPromptContent">
+                    <textarea id="personalityPrompt" class="prompt-textarea" placeholder="Define the AI's personality, tone, and communication style (e.g., friendly, professional, creative, analytical)...">Be friendly and engaging while maintaining professionalism. Use a conversational tone and show enthusiasm for helping users solve problems.</textarea>
+                </div>
+                
+                <div class="prompt-content" id="memoryPromptContent">
+                    <textarea id="memoryContext" class="prompt-textarea" placeholder="Enter persistent context information like current projects, preferences, important facts to remember across conversations...">## User Profile (moke)
+- Expert developer: Kotlin, Java, Python, TypeScript, JavaScript
+- Platform: Windows 11 host + Ubuntu VM
+- Focus: Android development, messaging apps, automation
+- Tools: Android Studio, ADB, Git, Node.js, Flutter
+- Architecture: Clean architecture, service-based patterns
+
+## Communication Style
+- Casual, direct, concise responses (under 4 lines unless detail requested)
+- Friendly but efficient, minimal preamble/postamble
+- Don't over-explain basics to experienced developer
+
+## Current Projects
+- DeepSeek chat interface improvements (OneDrive integration, mobile optimization)
+- Marketplace monitor project (React PWA + Node.js backend)
+- Android development and automation tools
+
+## Working Environment
+- Claude Code CLI for development workflow
+- Command line automation and project setup
+- Integration with development tools and services</textarea>
+                    <div style="margin-top: 10px; font-size: 12px; color: #9A9AB0;">
+                        This context is included with every API call along with recent messages, but saved separately to reduce token usage.
+                    </div>
+                </div>
+                
+                <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #3D3D5C;">
+                    <label style="color: white; font-weight: 600; margin-bottom: 8px; display: block;">🎯 Focus Mode Settings</label>
+                    <div style="display: grid; gap: 8px; margin-bottom: 16px;">
+                        <label style="display: flex; align-items: center; gap: 8px; color: #9A9AB0; font-size: 12px;">
+                            <input type="checkbox" id="focusAutoTimer" onchange="updateFocusSettings()" checked style="accent-color: #6C63FF;">
+                            Show session timer
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; color: #9A9AB0; font-size: 12px;">
+                            <input type="checkbox" id="focusShowStats" onchange="updateFocusSettings()" checked style="accent-color: #6C63FF;">
+                            Show productivity stats
+                        </label>
+                        <div style="color: #9A9AB0; font-size: 11px; margin-top: 4px;">
+                            Shortcuts: F11 or Alt+F (toggle), Alt+S (stats), Alt+T (timer)
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #3D3D5C;">
+                    <label style="color: white; font-weight: 600; margin-bottom: 8px; display: block;">📋 Custom Templates</label>
+                    <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                        <input type="text" id="customTemplateName" placeholder="Template name..." 
+                               style="flex: 1; padding: 6px 8px; border: 1px solid #4A4A6A; border-radius: 4px; background: #3D3D5C; color: white; font-size: 12px;">
+                        <button onclick="saveCustomTemplate()" 
+                                style="padding: 6px 12px; border: none; border-radius: 4px; background: #6C63FF; color: white; font-size: 12px; cursor: pointer;">
+                            Save Current
+                        </button>
+                    </div>
+                    <div id="customTemplatesList" style="max-height: 100px; overflow-y: auto;">
+                        <!-- Custom templates will be populated here -->
+                    </div>
+                </div>
+                
+                <div class="preset-buttons">
+                    <button class="preset-btn" onclick="setPreset('coding')">🔧 Coding Assistant</button>
+                    <button class="preset-btn" onclick="setPreset('creative')">🎨 Creative Writer</button>
+                    <button class="preset-btn" onclick="setPreset('analyst')">📊 Data Analyst</button>
+                    <button class="preset-btn" onclick="setPreset('teacher')">👨‍🏫 Teacher</button>
+                    <button class="preset-btn" onclick="setPreset('researcher')">🔬 Researcher</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="status" id="status">Enter your API key to start chatting</div>
+
+    <div class="chat-container" id="chatContainer">
+        <div class="message-wrapper bot">
+            <div class="message bot-message">
+                👋 Hi! I'm DeepSeek R1 with full customization. Set your API key, configure your settings, and let's chat!
+            </div>
+            <div class="message-actions">
+                <button class="action-btn copy-btn" onclick="copyMessage('👋 Hi! I\'m DeepSeek R1 with full customization. Set your API key, configure your settings, and let\'s chat!')" title="Copy message">📋</button>
+                <button class="action-btn delete-btn" onclick="deleteMessage(this.closest('.message-wrapper'))" title="Delete message">🗑️</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="input-container">
+        <div id="imagePreviewArea"></div>
+        <div class="input-wrapper">
+            <button class="image-upload-btn" id="imageUploadBtn" onclick="selectImage()" title="Upload Image">📷</button>
+            <textarea 
+                id="messageInput" 
+                class="message-input" 
+                placeholder="Type your message..."
+                disabled
+            ></textarea>
+            <button class="send-button" id="sendButton" onclick="sendMessage()" disabled>
+                ➤
+            </button>
+            <div class="token-counter" id="tokenCounter">
+                <div class="token-progress-bar">
+                    <div class="token-progress-fill" id="tokenProgressFill"></div>
+                </div>
+                <div class="token-text" id="tokenText">0/8000 (0%)</div>
+            </div>
+            <div class="keyboard-hint">Ctrl+Enter to send • Esc to close • Alt+C copy • Alt+E edit • 📷 for images</div>
+        </div>
+        <input type="file" id="imageFileInput" accept="image/*" style="display: none;" onchange="handleImageUpload(event)">
+    </div>
+
+    <script>
+        let apiKey = '';
+        let isConnected = false;
+        let isThinking = false;
+        let conversationHistory = [];
+        let currentConversationId = null;
+        let draftSaveInterval = null;
+        let conversations = [];
+        let maxConversations = 20;
+        let totalTokens = 0;
+
+        // Toast notification system
+        function showToast(message, type = 'info', duration = 4000) {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            
+            // Set icon based on type
+            const icons = {
+                success: '✓',
+                error: '✗', 
+                info: 'ℹ'
+            };
+            
+            toast.innerHTML = `
+                <span class="toast-icon">${icons[type] || icons.info}</span>
+                <span class="toast-message">${message}</span>
+            `;
+            
+            container.appendChild(toast);
+            
+            // Trigger animation
+            setTimeout(() => toast.classList.add('show'), 100);
+            
+            // Auto-dismiss
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => {
+                    if (toast.parentNode) {
+                        container.removeChild(toast);
+                    }
+                }, 300);
+            }, duration);
+        }
+
+        // Draft persistence system
+        function saveDraft() {
+            const messageInput = document.getElementById('messageInput');
+            if (!messageInput) {
+                console.warn('Message input not found for draft saving');
+                return;
+            }
+            
+            const draft = messageInput.value.trim();
+            
+            if (draft) {
+                localStorage.setItem('deepseek-draft', draft);
+                console.log('Draft saved:', draft.substring(0, 50) + '...');
+            } else {
+                localStorage.removeItem('deepseek-draft');
+                console.log('Empty draft cleared');
+            }
+        }
+
+        function loadDraft() {
+            const savedDraft = localStorage.getItem('deepseek-draft');
+            if (savedDraft) {
+                const messageInput = document.getElementById('messageInput');
+                if (!messageInput) {
+                    console.warn('Message input not found for draft loading');
+                    return;
+                }
+                
+                messageInput.value = savedDraft;
+                // Trigger resize for mobile
+                messageInput.style.height = 'auto';
+                messageInput.style.height = Math.min(messageInput.scrollHeight, 120) + 'px';
+                console.log('Draft loaded:', savedDraft.substring(0, 50) + '...');
+            }
+        }
+
+        function clearDraft() {
+            localStorage.removeItem('deepseek-draft');
+            console.log('Draft cleared');
+        }
+
+        function startDraftSaving() {
+            // Save draft every 2 seconds
+            draftSaveInterval = setInterval(saveDraft, 2000);
+            console.log('Draft auto-save started');
+        }
+
+        function stopDraftSaving() {
+            if (draftSaveInterval) {
+                clearInterval(draftSaveInterval);
+                draftSaveInterval = null;
+                console.log('Draft auto-save stopped');
+            }
+        }
+
+        // Conversation management
+        function generateConversationTitle(firstMessage) {
+            // Generate title from first 50 characters of first message
+            return firstMessage.length > 50 ? firstMessage.substring(0, 50) + '...' : firstMessage;
+        }
+
+        function saveCurrentConversation() {
+            if (conversationHistory.length === 0) return;
+
+            const conversation = {
+                id: currentConversationId || Date.now().toString(),
+                title: generateConversationTitle(conversationHistory[0].content),
+                messages: [...conversationHistory],
+                timestamp: Date.now()
+            };
+
+            // Update existing or add new
+            const existingIndex = conversations.findIndex(c => c.id === conversation.id);
+            if (existingIndex >= 0) {
+                conversations[existingIndex] = conversation;
+            } else {
+                conversations.unshift(conversation);
+                // Auto-prune to max conversations
+                if (conversations.length > maxConversations) {
+                    conversations = conversations.slice(0, maxConversations);
+                }
+            }
+
+            currentConversationId = conversation.id;
+            localStorage.setItem('deepseek-conversations', JSON.stringify(conversations));
+            updateConversationList();
+        }
+
+        function loadConversations() {
+            const saved = localStorage.getItem('deepseek-conversations');
+            if (saved) {
+                try {
+                    conversations = JSON.parse(saved);
+                    updateConversationList();
+                } catch (error) {
+                    console.error('Error loading conversations:', error);
+                    conversations = [];
+                }
+            }
+        }
+
+        function updateConversationList() {
+            const list = document.getElementById('conversationList');
+            list.innerHTML = '';
+
+            conversations.forEach(conv => {
+                const item = document.createElement('div');
+                item.className = `conversation-item ${conv.id === currentConversationId ? 'active' : ''}`;
+                item.innerHTML = `
+                    <span class="conversation-title">${conv.title}</span>
+                    <button class="conversation-delete" onclick="deleteConversation('${conv.id}')" title="Delete">🗑️</button>
+                `;
+                item.onclick = (e) => {
+                    if (e.target.classList.contains('conversation-delete')) return;
+                    loadConversation(conv.id);
+                };
+                list.appendChild(item);
+            });
+        }
+
+        function newConversation() {
+            // Save current conversation if it has messages
+            if (conversationHistory.length > 0) {
+                saveCurrentConversation();
+            }
+
+            // Clear current conversation
+            conversationHistory = [];
+            currentConversationId = null;
+            document.getElementById('chatContainer').innerHTML = '';
+            resetTokenCounter(); // Reset token counter for new conversation
+            
+            // Clear template if this is a manual new conversation (not from template)
+            if (!currentTemplate) {
+                clearTemplate();
+            }
+            
+            // Add welcome message (unless template will add its own)
+            if (!currentTemplate) {
+                const welcomeMsg = "👋 Hi! I'm DeepSeek R1 with full customization. Set your API key, configure your settings, and let's chat!";
+                addMessage(welcomeMsg, false);
+            }
+            
+            updateConversationList();
+            showToast('New conversation started', 'info');
+        }
+
+        function loadConversation(conversationId) {
+            const conversation = conversations.find(c => c.id === conversationId);
+            if (!conversation) return;
+
+            // Save current conversation first
+            if (conversationHistory.length > 0 && currentConversationId !== conversationId) {
+                saveCurrentConversation();
+            }
+
+            // Load selected conversation
+            currentConversationId = conversationId;
+            conversationHistory = [...conversation.messages];
+            resetTokenCounter(); // Reset token counter for loaded conversation
+            
+            // Clear and rebuild chat display
+            const chatContainer = document.getElementById('chatContainer');
+            chatContainer.innerHTML = '';
+            
+            conversationHistory.forEach(msg => {
+                addMessage(msg.content, msg.role === 'user', false, false, msg.timestamp, msg.imageData);
+            });
+
+            updateConversationList();
+            showToast('Conversation loaded', 'success');
+        }
+
+        function deleteConversation(conversationId) {
+            if (!confirm('Delete this conversation?')) return;
+
+            conversations = conversations.filter(c => c.id !== conversationId);
+            localStorage.setItem('deepseek-conversations', JSON.stringify(conversations));
+
+            // If we deleted the current conversation, start a new one
+            if (currentConversationId === conversationId) {
+                newConversation();
+            } else {
+                updateConversationList();
+            }
+
+            showToast('Conversation deleted', 'info');
+        }
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('show');
+        }
+
+        // Token counter management
+        function updateTokenCounter(usedTokens, maxTokens = 8000) {
+            totalTokens = usedTokens;
+            const progressFill = document.getElementById('tokenProgressFill');
+            const tokenText = document.getElementById('tokenText');
+            const percentage = (usedTokens / maxTokens) * 100;
+            
+            // Update progress bar width with animation
+            progressFill.style.width = `${Math.min(percentage, 100)}%`;
+            
+            // Update text with percentage
+            tokenText.textContent = `${usedTokens}/${maxTokens} (${Math.round(percentage)}%)`;
+            
+            // Update color based on usage
+            progressFill.className = 'token-progress-fill';
+            if (percentage >= 90) {
+                progressFill.classList.add('danger');
+            } else if (percentage >= 75) {
+                progressFill.classList.add('warning');
+            }
+        }
+
+        function resetTokenCounter() {
+            totalTokens = 0;
+            updateTokenCounter(0);
+        }
+
+        let contextLimit = 10; // Only send last 10 messages to API
+
+        const workflowPresets = {
+            coding: {
+                name: "💻 Coding",
+                base: "You are an expert software engineer and coding assistant. Provide clean, efficient code with clear explanations. Always consider best practices, security, and performance. Format code blocks properly and include comments where helpful.",
+                personality: "Be methodical and precise, but also encouraging. Show excitement about elegant solutions and help users understand not just what to do, but why. Use technical language appropriately but explain complex concepts clearly.",
+                parameters: {
+                    model: "deepseek-reasoner",
+                    temperature: 0.3,
+                    maxTokens: 4000,
+                    topP: 0.9,
+                    freqPenalty: 0.1,
+                    presPenalty: 0.1
+                }
+            },
+            research: {
+                name: "🔍 Research",
+                base: "You are a research assistant and analyst. Help with finding information, analyzing sources, summarizing findings, and organizing research systematically. Provide comprehensive yet focused responses with proper citations when relevant.",
+                personality: "Be thorough and methodical, but also curious and engaging. Show enthusiasm for discovery and learning. Present research findings in an organized, accessible way that highlights key insights.",
+                parameters: {
+                    model: "deepseek-reasoner", 
+                    temperature: 0.5,
+                    maxTokens: 6000,
+                    topP: 0.95,
+                    freqPenalty: 0,
+                    presPenalty: 0
+                }
+            },
+            creative: {
+                name: "🎨 Creative",
+                base: "You are a creative writing assistant. Help with storytelling, poetry, creative projects, and artistic endeavors. Provide constructive feedback and inspire new ideas. Structure your responses to be engaging and imaginative.",
+                personality: "Be imaginative, inspiring, and enthusiastic about creative expression. Use vivid language and encourage experimentation. Show genuine interest in artistic vision and help bring ideas to life with passion.",
+                parameters: {
+                    model: "deepseek-reasoner",
+                    temperature: 0.8,
+                    maxTokens: 5000,
+                    topP: 0.95,
+                    freqPenalty: 0.3,
+                    presPenalty: 0.2
+                }
+            }
+        };
+
+        let currentWorkflow = null;
+
+        const sessionTemplates = {
+            meeting: {
+                name: "📅 Meeting",
+                description: "Meeting notes and action items",
+                initialPrompt: "I'm starting a meeting session. Please help me take structured notes, identify action items, and track decisions. Format responses in a clear, meeting-friendly structure.",
+                context: "Meeting session - focus on organization, clarity, and actionable outcomes.",
+                workflow: "research"
+            },
+            learning: {
+                name: "🎓 Learning",
+                description: "Study session with explanations",
+                initialPrompt: "I'm starting a learning session. Please explain concepts clearly, provide examples, and help me understand complex topics step by step. Ask clarifying questions when needed.",
+                context: "Learning session - prioritize clear explanations, examples, and knowledge building.",
+                workflow: "coding"
+            },
+            brainstorm: {
+                name: "💡 Brainstorm",
+                description: "Creative ideation and problem solving",
+                initialPrompt: "I'm starting a brainstorming session. Please help generate creative ideas, explore different approaches, and think outside the box. Encourage wild ideas and build on concepts.",
+                context: "Brainstorming session - focus on creativity, idea generation, and innovative thinking.",
+                workflow: "creative"
+            },
+            debug: {
+                name: "🐛 Debug",
+                description: "Technical troubleshooting session",
+                initialPrompt: "I'm starting a debugging session. Please help systematically analyze problems, suggest diagnostic steps, and provide methodical solutions. Focus on root cause analysis.",
+                context: "Debug session - systematic problem-solving, step-by-step analysis, and technical precision.",
+                workflow: "coding"
+            },
+            planning: {
+                name: "📋 Planning",
+                description: "Project and task planning session",
+                initialPrompt: "I'm starting a planning session. Please help break down goals into actionable steps, identify dependencies, and create structured plans. Focus on organization and feasibility.",
+                context: "Planning session - structured thinking, goal decomposition, and strategic organization.",
+                workflow: "research"
+            }
+        };
+
+        let currentTemplate = null;
+
+        // Focus Mode System
+        let focusMode = false;
+        let focusStartTime = null;
+        let focusTimer = null;
+        let focusSessionMessages = 0;
+        let totalFocusTime = parseInt(localStorage.getItem('deepseek-total-focus-time') || '0');
+        let focusSettings = JSON.parse(localStorage.getItem('deepseek-focus-settings') || '{"autoTimer": true, "showStats": true, "hideUI": true}');
+
+        // Image upload system
+        let currentImage = null;
+        let currentImageBase64 = null;
+
+        function toggleSettings() {
+            const panel = document.getElementById('settingsPanel');
+            const isVisible = panel.style.display === 'block';
+            panel.style.display = isVisible ? 'none' : 'block';
+        }
+
+        function setWorkflow(workflowType) {
+            if (workflowPresets[workflowType]) {
+                const workflow = workflowPresets[workflowType];
+                currentWorkflow = workflowType;
+                
+                // Update prompts
+                document.getElementById('basePrompt').value = workflow.base;
+                document.getElementById('personalityPrompt').value = workflow.personality;
+                
+                // Update parameters
+                document.getElementById('model').value = workflow.parameters.model;
+                document.getElementById('temperature').value = workflow.parameters.temperature;
+                document.getElementById('maxTokens').value = workflow.parameters.maxTokens;
+                document.getElementById('topP').value = workflow.parameters.topP;
+                document.getElementById('freqPenalty').value = workflow.parameters.freqPenalty;
+                document.getElementById('presPenalty').value = workflow.parameters.presPenalty;
+                
+                // Update labels
+                updateTempLabel();
+                updateTopPLabel();
+                updateFreqLabel();
+                updatePresLabel();
+                
+                // Update workflow indicator
+                updateWorkflowIndicator();
+                
+                // Auto-save configuration
+                autoSaveConfig();
+                
+                showToast(`Switched to ${workflow.name} workflow`, 'success');
+            }
+        }
+
+        function updateWorkflowIndicator() {
+            const workflowButtons = document.querySelectorAll('.workflow-btn');
+            workflowButtons.forEach(btn => btn.classList.remove('active'));
+            
+            if (currentWorkflow) {
+                const activeBtn = document.querySelector(`[onclick="setWorkflow('${currentWorkflow}')"]`);
+                if (activeBtn) {
+                    activeBtn.classList.add('active');
+                }
+            }
+        }
+
+        function applyTemplate(templateType) {
+            if (sessionTemplates[templateType]) {
+                const template = sessionTemplates[templateType];
+                currentTemplate = templateType;
+                
+                // Apply associated workflow first
+                setWorkflow(template.workflow);
+                
+                // Update memory context with template context
+                document.getElementById('memoryContext').value = template.context;
+                
+                // Update template indicator
+                updateTemplateIndicator();
+                
+                // Auto-save configuration
+                autoSaveConfig();
+                
+                // Start new conversation with template
+                newConversation();
+                
+                // Add template initialization message
+                setTimeout(() => {
+                    addMessage(template.initialPrompt, true, false, true);
+                    showToast(`${template.name} template applied`, 'success');
+                }, 100);
+            }
+        }
+
+        function updateTemplateIndicator() {
+            const templateButtons = document.querySelectorAll('.template-btn');
+            templateButtons.forEach(btn => btn.classList.remove('active'));
+            
+            if (currentTemplate) {
+                const activeBtn = document.querySelector(`[onclick="applyTemplate('${currentTemplate}')"]`);
+                if (activeBtn) {
+                    activeBtn.classList.add('active');
+                }
+            }
+        }
+
+        function clearTemplate() {
+            currentTemplate = null;
+            updateTemplateIndicator();
+        }
+
+        // Custom template management
+        let customTemplates = JSON.parse(localStorage.getItem('deepseek-custom-templates') || '{}');
+
+        function saveCustomTemplate() {
+            const nameInput = document.getElementById('customTemplateName');
+            const name = nameInput.value.trim();
+            
+            if (!name) {
+                showToast('Please enter a template name', 'error');
+                return;
+            }
+            
+            const template = {
+                name: name,
+                description: `Custom template: ${name}`,
+                basePrompt: document.getElementById('basePrompt').value,
+                personalityPrompt: document.getElementById('personalityPrompt').value,
+                memoryContext: document.getElementById('memoryContext').value,
+                workflow: currentWorkflow,
+                created: Date.now()
+            };
+            
+            customTemplates[name] = template;
+            localStorage.setItem('deepseek-custom-templates', JSON.stringify(customTemplates));
+            
+            nameInput.value = '';
+            updateCustomTemplatesList();
+            showToast(`Template "${name}" saved`, 'success');
+        }
+
+        function loadCustomTemplate(name) {
+            const template = customTemplates[name];
+            if (!template) return;
+            
+            document.getElementById('basePrompt').value = template.basePrompt;
+            document.getElementById('personalityPrompt').value = template.personalityPrompt;
+            document.getElementById('memoryContext').value = template.memoryContext;
+            
+            if (template.workflow) {
+                setWorkflow(template.workflow);
+            }
+            
+            autoSaveConfig();
+            showToast(`Template "${name}" loaded`, 'success');
+        }
+
+        function deleteCustomTemplate(name) {
+            if (!confirm(`Delete template "${name}"?`)) return;
+            
+            delete customTemplates[name];
+            localStorage.setItem('deepseek-custom-templates', JSON.stringify(customTemplates));
+            updateCustomTemplatesList();
+            showToast(`Template "${name}" deleted`, 'info');
+        }
+
+        function updateCustomTemplatesList() {
+            const container = document.getElementById('customTemplatesList');
+            container.innerHTML = '';
+            
+            Object.keys(customTemplates).forEach(name => {
+                const template = customTemplates[name];
+                const templateDiv = document.createElement('div');
+                templateDiv.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px solid #3D3D5C; margin-bottom: 4px;';
+                
+                templateDiv.innerHTML = `
+                    <span style="color: white; font-size: 12px; cursor: pointer;" onclick="loadCustomTemplate('${name}')">${name}</span>
+                    <button onclick="deleteCustomTemplate('${name}')" style="background: #f44336; border: none; border-radius: 3px; color: white; padding: 2px 6px; font-size: 10px; cursor: pointer;">×</button>
+                `;
+                
+                container.appendChild(templateDiv);
+            });
+            
+            if (Object.keys(customTemplates).length === 0) {
+                container.innerHTML = '<div style="color: #9A9AB0; font-size: 11px; font-style: italic;">No custom templates saved</div>';
+            }
+        }
+
+        function setPreset(type) {
+            // Legacy function for compatibility - map to new workflow system
+            const presetMap = {
+                'coding': 'coding',
+                'creative': 'creative', 
+                'analyst': 'research',
+                'teacher': 'research',
+                'researcher': 'research'
+            };
+            
+            const workflowType = presetMap[type] || 'research';
+            setWorkflow(workflowType);
+        }
+        
+        function switchPromptTab(tab) {
+            // Update tab buttons
+            document.querySelectorAll('.prompt-tab').forEach(btn => btn.classList.remove('active'));
+            document.querySelector(`[onclick="switchPromptTab('${tab}')"]`).classList.add('active');
+            
+            // Update content visibility
+            document.querySelectorAll('.prompt-content').forEach(content => content.classList.remove('active'));
+            document.getElementById(tab + 'PromptContent').classList.add('active');
+        }
+
+        function updateTempLabel() {
+            document.getElementById('tempLabel').textContent = document.getElementById('temperature').value;
+        }
+
+        function updateTopPLabel() {
+            document.getElementById('topPLabel').textContent = document.getElementById('topP').value;
+        }
+
+        function updateFreqLabel() {
+            document.getElementById('freqLabel').textContent = document.getElementById('freqPenalty').value;
+        }
+
+        function updatePresLabel() {
+            document.getElementById('presLabel').textContent = document.getElementById('presPenalty').value;
+        }
+
+        function clearChat() {
+            if (confirm('Clear all messages?')) {
+                document.getElementById('chatContainer').innerHTML = '';
+                conversationHistory = [];
+                currentConversationId = null;
+            }
+        }
+
+        // Export conversation for OneDrive
+        async function exportConversation() {
+            if (conversationHistory.length === 0) {
+                alert('No conversation to export');
+                return;
+            }
+            
+            const conversationData = {
+                id: currentConversationId || 'conversation-' + Date.now(),
+                timestamp: new Date().toISOString(),
+                messages: conversationHistory,
+                memoryContext: document.getElementById('memoryContext').value,
+                settings: {
+                    model: document.getElementById('model').value,
+                    temperature: document.getElementById('temperature').value,
+                    basePrompt: document.getElementById('basePrompt').value,
+                    personalityPrompt: document.getElementById('personalityPrompt').value
+                }
+            };
+            
+            const filename = `deepseek-conversation-${new Date().toISOString().split('T')[0]}-${Date.now()}.json`;
+            const fileContent = JSON.stringify(conversationData, null, 2);
+            
+            // Try modern File System Access API first (Chrome/Edge on desktop)
+            if (window.showSaveFilePicker) {
+                try {
+                    const fileHandle = await window.showSaveFilePicker({
+                        suggestedName: filename,
+                        types: [{
+                            description: 'JSON files',
+                            accept: { 'application/json': ['.json'] }
+                        }]
+                    });
+                    
+                    const writable = await fileHandle.createWritable();
+                    await writable.write(fileContent);
+                    await writable.close();
+                    
+                    const status = document.getElementById('status');
+                    const originalText = status.innerHTML;
+                    status.innerHTML = '<span class="connected">✓ Conversation saved directly to chosen location</span>';
+                    setTimeout(() => {
+                        status.innerHTML = originalText;
+                    }, 3000);
+                    return;
+                } catch (error) {
+                    // User cancelled or error occurred, fall back to download
+                    console.log('File picker cancelled or failed, using download fallback');
+                }
+            }
+            
+            // Fallback: Download file (works on all browsers/mobile)
+            const blob = new Blob([fileContent], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            const status = document.getElementById('status');
+            const originalText = status.innerHTML;
+            status.innerHTML = '<span class="connected">✓ Conversation downloaded! Move to OneDrive folder</span>';
+            setTimeout(() => {
+                status.innerHTML = originalText;
+            }, 3000);
+        }
+
+        // Share conversation on mobile
+        async function shareConversation() {
+            if (conversationHistory.length === 0) {
+                alert('No conversation to share');
+                return;
+            }
+            
+            const conversationData = {
+                id: currentConversationId || 'conversation-' + Date.now(),
+                timestamp: new Date().toISOString(),
+                messages: conversationHistory,
+                memoryContext: document.getElementById('memoryContext').value,
+                settings: {
+                    model: document.getElementById('model').value,
+                    temperature: document.getElementById('temperature').value,
+                    basePrompt: document.getElementById('basePrompt').value,
+                    personalityPrompt: document.getElementById('personalityPrompt').value
+                }
+            };
+            
+            const filename = `deepseek-conversation-${new Date().toISOString().split('T')[0]}.json`;
+            const fileContent = JSON.stringify(conversationData, null, 2);
+            
+            if (navigator.share && navigator.canShare) {
+                try {
+                    const blob = new Blob([fileContent], { type: 'application/json' });
+                    const file = new File([blob], filename, { type: 'application/json' });
+                    
+                    if (navigator.canShare({ files: [file] })) {
+                        await navigator.share({
+                            title: 'DeepSeek Conversation',
+                            text: 'Sharing my DeepSeek chat conversation',
+                            files: [file]
+                        });
+                        return;
+                    }
+                } catch (error) {
+                    console.log('Web Share API failed, falling back to copy');
+                }
+            }
+            
+            // Fallback: Copy conversation as text
+            const textConversation = conversationHistory.map(msg => 
+                `${msg.role === 'user' ? 'You' : 'AI'}: ${msg.content}`
+            ).join('\n\n');
+            
+            try {
+                await navigator.clipboard.writeText(textConversation);
+                const status = document.getElementById('status');
+                const originalText = status.innerHTML;
+                status.innerHTML = '<span class="connected">✓ Conversation copied to clipboard</span>';
+                setTimeout(() => {
+                    status.innerHTML = originalText;
+                }, 3000);
+            } catch (error) {
+                // Final fallback
+                exportConversation();
+            }
+        }
+
+        // Load conversation from browser storage on page load
+        function loadAutoSavedConversation() {
+            const saved = localStorage.getItem('deepseek-current-conversation');
+            if (saved) {
+                try {
+                    const data = JSON.parse(saved);
+                    if (data.messages && data.messages.length > 0) {
+                        // Ask user if they want to restore the conversation
+                        if (confirm('Restore previous conversation?')) {
+                            conversationHistory = data.messages;
+                            currentConversationId = data.id;
+                            if (data.memoryContext) {
+                                document.getElementById('memoryContext').value = data.memoryContext;
+                            }
+                            rebuildChatDisplay();
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error loading auto-saved conversation:', error);
+                }
+            }
+        }
+
+        function importConversation() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = function(event) {
+                const file = event.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        try {
+                            const data = JSON.parse(e.target.result);
+                            
+                            // Load conversation
+                            conversationHistory = data.messages || [];
+                            currentConversationId = data.id;
+                            
+                            // Load memory context
+                            if (data.memoryContext) {
+                                document.getElementById('memoryContext').value = data.memoryContext;
+                            }
+                            
+                            // Load settings
+                            if (data.settings) {
+                                document.getElementById('model').value = data.settings.model || 'deepseek-reasoner';
+                                document.getElementById('temperature').value = data.settings.temperature || '0.7';
+                                document.getElementById('basePrompt').value = data.settings.basePrompt || '';
+                                document.getElementById('personalityPrompt').value = data.settings.personalityPrompt || '';
+                                updateTempLabel();
+                            }
+                            
+                            // Rebuild chat display
+                            rebuildChatDisplay();
+                            
+                            const status = document.getElementById('status');
+                            const originalText = status.innerHTML;
+                            status.innerHTML = '<span class="connected">✓ Conversation imported successfully</span>';
+                            setTimeout(() => {
+                                status.innerHTML = originalText;
+                            }, 3000);
+                            
+                        } catch (error) {
+                            alert('Error importing conversation: ' + error.message);
+                        }
+                    };
+                    reader.readAsText(file);
+                }
+            };
+            input.click();
+        }
+
+        function rebuildChatDisplay() {
+            const chatContainer = document.getElementById('chatContainer');
+            chatContainer.innerHTML = '';
+            
+            conversationHistory.forEach(msg => {
+                addMessage(msg.content, msg.role === 'user', false, false, msg.timestamp, msg.imageData);
+            });
+        }
+
+        // Auto-export conversation to browser storage
+        setInterval(() => {
+            if (conversationHistory.length > 0) {
+                const conversationData = {
+                    id: currentConversationId || 'conversation-' + Date.now(),
+                    timestamp: new Date().toISOString(),
+                    messages: conversationHistory,
+                    memoryContext: document.getElementById('memoryContext').value
+                };
+                localStorage.setItem('deepseek-current-conversation', JSON.stringify(conversationData));
+            }
+        }, 10000); // Auto-save every 10 seconds to browser storage
+
+        function copyMessage(content) {
+            navigator.clipboard.writeText(content).then(() => {
+                // Show brief feedback
+                const status = document.getElementById('status');
+                const originalText = status.innerHTML;
+                status.innerHTML = '<span class="connected">✓ Copied to clipboard</span>';
+                setTimeout(() => {
+                    status.innerHTML = originalText;
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+                // Fallback for older browsers
+                const textArea = document.createElement('textarea');
+                textArea.value = content;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+            });
+        }
+
+        function deleteMessage(messageWrapper) {
+            if (confirm('Delete this message?')) {
+                const messageDiv = messageWrapper.querySelector('.message');
+                const content = messageDiv.textContent;
+                
+                // Remove from conversation history
+                conversationHistory = conversationHistory.filter(msg => msg.content !== content);
+                
+                // Remove from DOM
+                messageWrapper.remove();
+            }
+        }
+
+        function editMessage(messageDiv, originalContent) {
+            const currentContent = messageDiv.textContent;
+            const newContent = prompt('Edit message:', currentContent);
+            
+            if (newContent !== null && newContent.trim() !== '') {
+                // Update the message display
+                messageDiv.innerHTML = newContent.replace(/\n/g, '<br>');
+                
+                // Update conversation history
+                const msgIndex = conversationHistory.findIndex(msg => msg.content === originalContent);
+                if (msgIndex !== -1) {
+                    conversationHistory[msgIndex].content = newContent;
+                }
+            }
+        }
+
+        async function regenerateResponse(messageWrapper) {
+            if (isThinking) return;
+            
+            const messageDiv = messageWrapper.querySelector('.message');
+            const originalContent = messageDiv.textContent;
+            
+            // Remove this AI response from conversation history
+            conversationHistory = conversationHistory.filter(msg => msg.content !== originalContent);
+            
+            // Remove the message wrapper
+            messageWrapper.remove();
+            
+            // Get the last user message to regenerate response
+            const lastUserMsg = conversationHistory[conversationHistory.length - 1];
+            if (lastUserMsg && lastUserMsg.role === 'user') {
+                // Temporarily remove the last user message from history so sendMessage logic works
+                const userContent = lastUserMsg.content;
+                conversationHistory.pop();
+                
+                // Show thinking indicator
+                isThinking = true;
+                document.getElementById('sendButton').disabled = true;
+                const thinkingDiv = addMessage('', false, true);
+                
+                try {
+                    // Build messages array with smart context system
+                    const messages = [];
+                    
+                    const basePrompt = document.getElementById('basePrompt').value.trim();
+                    const personalityPrompt = document.getElementById('personalityPrompt').value.trim();
+                    const memoryContext = document.getElementById('memoryContext').value.trim();
+                    
+                    // Build system prompt
+                    let systemPrompt = '';
+                    if (basePrompt) {
+                        systemPrompt += basePrompt;
+                    }
+                    if (personalityPrompt) {
+                        if (systemPrompt) systemPrompt += '\n\n';
+                        systemPrompt += 'Personality and Communication Style: ' + personalityPrompt;
+                    }
+                    if (memoryContext) {
+                        if (systemPrompt) systemPrompt += '\n\n';
+                        systemPrompt += 'Important Context & Memory: ' + memoryContext;
+                    }
+                    
+                    if (systemPrompt) {
+                        messages.push({
+                            role: 'system',
+                            content: systemPrompt
+                        });
+                    }
+                    
+                    // Add only recent conversation history (last N messages)
+                    const recentHistory = conversationHistory.slice(-contextLimit);
+                    messages.push(...recentHistory);
+                    
+                    // Add the user message
+                    messages.push({
+                        role: 'user',
+                        content: userContent
+                    });
+
+                    const requestBody = {
+                        model: document.getElementById('model').value,
+                        messages: messages,
+                        max_tokens: parseInt(document.getElementById('maxTokens').value),
+                        temperature: parseFloat(document.getElementById('temperature').value),
+                        top_p: parseFloat(document.getElementById('topP').value),
+                        frequency_penalty: parseFloat(document.getElementById('freqPenalty').value),
+                        presence_penalty: parseFloat(document.getElementById('presPenalty').value)
+                    };
+
+                    const response = await fetch('https://api.deepseek.com/chat/completions', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${apiKey}`
+                        },
+                        body: JSON.stringify(requestBody)
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    const data = await response.json();
+                    thinkingDiv.remove();
+                    
+                    // Add the user message back to history
+                    conversationHistory.push({
+                        role: 'user',
+                        content: userContent
+                    });
+                    
+                    if (data.choices && data.choices[0] && data.choices[0].message) {
+                        const content = data.choices[0].message.content;
+                        addMessage(content, false);
+                    } else {
+                        addMessage('Sorry, I received an unexpected response format.', false);
+                    }
+                    
+                } catch (error) {
+                    console.error('Error:', error);
+                    thinkingDiv.remove();
+                    addMessage(`Error: ${error.message}. Please check your API key and try again.`, false);
+                }
+                
+                isThinking = false;
+                document.getElementById('sendButton').disabled = false;
+            }
+        }
+
+        // Enhanced message actions
+        let bookmarkedMessages = JSON.parse(localStorage.getItem('deepseek-bookmarks') || '[]');
+        let replyContext = null;
+
+        function replyToMessage(messageWrapper, content, isUser) {
+            replyContext = { content, isUser, wrapper: messageWrapper };
+            
+            // Add reply indicator to input
+            const messageInput = document.getElementById('messageInput');
+            const placeholder = `Replying to ${isUser ? 'your' : 'AI'} message: "${content.substring(0, 50)}${content.length > 50 ? '...' : ''}"`;
+            messageInput.placeholder = placeholder;
+            messageInput.focus();
+            
+            // Add visual indicator to the message being replied to
+            messageWrapper.classList.add('replied-to');
+            
+            showToast('Reply mode activated - send your message', 'info');
+        }
+
+        function clearReplyContext() {
+            if (replyContext) {
+                replyContext.wrapper.classList.remove('replied-to');
+                replyContext = null;
+                document.getElementById('messageInput').placeholder = 'Type your message...';
+            }
+        }
+
+        function toggleBookmark(messageWrapper, content) {
+            const messageId = content.substring(0, 100); // Use first 100 chars as ID
+            const bookmarkBtn = messageWrapper.querySelector('.bookmark-btn');
+            
+            const existingIndex = bookmarkedMessages.findIndex(b => b.id === messageId);
+            
+            if (existingIndex >= 0) {
+                // Remove bookmark
+                bookmarkedMessages.splice(existingIndex, 1);
+                bookmarkBtn.classList.remove('bookmarked');
+                messageWrapper.querySelector('.bookmarked-indicator')?.remove();
+                showToast('Bookmark removed', 'info');
+            } else {
+                // Add bookmark
+                bookmarkedMessages.push({
+                    id: messageId,
+                    content: content,
+                    timestamp: Date.now()
+                });
+                bookmarkBtn.classList.add('bookmarked');
+                
+                // Add visual indicator
+                const indicator = document.createElement('div');
+                indicator.className = 'bookmarked-indicator';
+                indicator.innerHTML = '★';
+                messageWrapper.style.position = 'relative';
+                messageWrapper.appendChild(indicator);
+                
+                showToast('Message bookmarked', 'success');
+            }
+            
+            localStorage.setItem('deepseek-bookmarks', JSON.stringify(bookmarkedMessages));
+        }
+
+        function exportMessage(content, isUser) {
+            const timestamp = new Date().toISOString().split('T')[0];
+            const author = isUser ? 'User' : 'AI';
+            
+            // Format options
+            const formats = {
+                text: `[${timestamp}] ${author}: ${content}`,
+                markdown: `**${author}** (${timestamp}):\n\n${content}\n\n---\n`
+            };
+            
+            // Create download for both formats
+            const textBlob = new Blob([formats.text], { type: 'text/plain' });
+            const markdownBlob = new Blob([formats.markdown], { type: 'text/markdown' });
+            
+            // Download text version
+            const textUrl = URL.createObjectURL(textBlob);
+            const textLink = document.createElement('a');
+            textLink.href = textUrl;
+            textLink.download = `message-${timestamp}-${author.toLowerCase()}.txt`;
+            document.body.appendChild(textLink);
+            textLink.click();
+            document.body.removeChild(textLink);
+            URL.revokeObjectURL(textUrl);
+            
+            showToast('Message exported as text file', 'success');
+        }
+
+        function searchMessages(searchTerm) {
+            const messageWrappers = document.querySelectorAll('.message-wrapper');
+            const trimmedTerm = searchTerm.trim().toLowerCase();
+            
+            if (!trimmedTerm) {
+                // Show all messages if search is empty
+                messageWrappers.forEach(wrapper => {
+                    wrapper.style.display = '';
+                    wrapper.style.backgroundColor = '';
+                });
+                return;
+            }
+            
+            let matchCount = 0;
+            messageWrappers.forEach(wrapper => {
+                const messageDiv = wrapper.querySelector('.message');
+                const content = messageDiv.textContent.toLowerCase();
+                
+                if (content.includes(trimmedTerm)) {
+                    wrapper.style.display = '';
+                    wrapper.style.backgroundColor = 'rgba(108, 99, 255, 0.1)'; // Highlight matches
+                    matchCount++;
+                } else {
+                    wrapper.style.display = 'none';
+                }
+            });
+            
+            if (matchCount > 0) {
+                showToast(`Found ${matchCount} message(s) matching "${searchTerm}"`, 'success', 2000);
+            } else {
+                showToast(`No messages found matching "${searchTerm}"`, 'info', 2000);
+            }
+        }
+
+        // Focus Mode Functions
+        function toggleFocusMode() {
+            focusMode = !focusMode;
+            const body = document.body;
+            const focusToggle = document.getElementById('focusToggle');
+            const focusTimer = document.getElementById('focusTimer');
+            const focusStats = document.getElementById('focusStats');
+
+            if (focusMode) {
+                // Enter focus mode
+                body.classList.add('focus-mode');
+                focusToggle.classList.add('active');
+                focusToggle.textContent = '🔍 Exit Focus';
+                
+                // Start focus session
+                startFocusSession();
+                
+                // Show timer if enabled
+                if (focusSettings.autoTimer) {
+                    focusTimer.style.display = 'block';
+                }
+                
+                showToast('Focus mode activated - minimal distractions', 'success');
+                
+                // Hide search when entering focus mode
+                const searchInput = document.getElementById('messageSearch');
+                if (searchInput) {
+                    searchInput.value = '';
+                    searchMessages(''); // Clear any active search
+                }
+                
+            } else {
+                // Exit focus mode
+                body.classList.remove('focus-mode');
+                focusToggle.classList.remove('active');
+                focusToggle.textContent = '🎯 Focus';
+                
+                // End focus session
+                endFocusSession();
+                
+                // Hide timer and stats
+                focusTimer.style.display = 'none';
+                focusStats.style.display = 'none';
+                
+                showToast('Focus mode deactivated', 'info');
+            }
+        }
+
+        function startFocusSession() {
+            focusStartTime = Date.now();
+            focusSessionMessages = 0;
+            
+            // Start timer update
+            focusTimer = setInterval(updateFocusTimer, 1000);
+            
+            // Update message counter on each new message
+            updateFocusStats();
+        }
+
+        function endFocusSession() {
+            if (focusTimer) {
+                clearInterval(focusTimer);
+                focusTimer = null;
+            }
+            
+            if (focusStartTime) {
+                const sessionDuration = Date.now() - focusStartTime;
+                totalFocusTime += sessionDuration;
+                localStorage.setItem('deepseek-total-focus-time', totalFocusTime.toString());
+                
+                const minutes = Math.floor(sessionDuration / 60000);
+                showToast(`Focus session completed: ${minutes} minutes, ${focusSessionMessages} messages`, 'success');
+            }
+        }
+
+        function updateFocusTimer() {
+            if (!focusStartTime) return;
+            
+            const elapsed = Date.now() - focusStartTime;
+            const minutes = Math.floor(elapsed / 60000);
+            const seconds = Math.floor((elapsed % 60000) / 1000);
+            
+            const timerDisplay = document.getElementById('timerDisplay');
+            timerDisplay.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        function updateFocusStats() {
+            if (!focusMode || !focusSettings.showStats) return;
+            
+            const focusStats = document.getElementById('focusStats');
+            const messageCount = document.getElementById('messageCount');
+            const sessionDuration = document.getElementById('sessionDuration');
+            
+            messageCount.textContent = `Messages: ${focusSessionMessages}`;
+            
+            if (focusStartTime) {
+                const elapsed = Date.now() - focusStartTime;
+                const minutes = Math.floor(elapsed / 60000);
+                const seconds = Math.floor((elapsed % 60000) / 1000);
+                sessionDuration.textContent = `Duration: ${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            }
+            
+            focusStats.style.display = 'block';
+        }
+
+        function incrementFocusMessageCount() {
+            if (focusMode) {
+                focusSessionMessages++;
+                updateFocusStats();
+            }
+        }
+
+        function updateFocusSettings() {
+            focusSettings.autoTimer = document.getElementById('focusAutoTimer').checked;
+            focusSettings.showStats = document.getElementById('focusShowStats').checked;
+            localStorage.setItem('deepseek-focus-settings', JSON.stringify(focusSettings));
+        }
+
+        function loadFocusSettings() {
+            document.getElementById('focusAutoTimer').checked = focusSettings.autoTimer;
+            document.getElementById('focusShowStats').checked = focusSettings.showStats;
+        }
+
+        // Image Upload Functions
+        function selectImage() {
+            document.getElementById('imageFileInput').click();
+        }
+
+        function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            // Validate file type
+            if (!file.type.startsWith('image/')) {
+                showToast('Please select a valid image file', 'error');
+                return;
+            }
+
+            // Validate file size (max 10MB)
+            if (file.size > 10 * 1024 * 1024) {
+                showToast('Image too large. Please select a file under 10MB', 'error');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                currentImageBase64 = e.target.result;
+                currentImage = file;
+                displayImagePreview(e.target.result);
+                updateImageUploadButton(true);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function displayImagePreview(imageSrc) {
+            const previewArea = document.getElementById('imagePreviewArea');
+            previewArea.innerHTML = `
+                <div class="image-preview-container">
+                    <img src="${imageSrc}" alt="Image preview" class="image-preview">
+                    <button class="image-remove-btn" onclick="removeImage()" title="Remove image">×</button>
+                </div>
+            `;
+            previewArea.style.display = 'block';
+        }
+
+        function removeImage() {
+            currentImage = null;
+            currentImageBase64 = null;
+            const previewArea = document.getElementById('imagePreviewArea');
+            previewArea.innerHTML = '';
+            previewArea.style.display = 'none';
+            updateImageUploadButton(false);
+            
+            // Reset file input
+            document.getElementById('imageFileInput').value = '';
+        }
+
+        function updateImageUploadButton(hasImage) {
+            const button = document.getElementById('imageUploadBtn');
+            if (hasImage) {
+                button.classList.add('has-image');
+                button.innerHTML = '🖼️';
+                button.title = 'Change Image';
+            } else {
+                button.classList.remove('has-image');
+                button.innerHTML = '📷';
+                button.title = 'Upload Image';
+            }
+        }
+
+        function openImageModal(imageSrc) {
+            const modal = document.getElementById('imageModal');
+            const modalImage = document.getElementById('modalImage');
+            modalImage.src = imageSrc;
+            modal.style.display = 'flex';
+        }
+
+        function closeImageModal() {
+            const modal = document.getElementById('imageModal');
+            modal.style.display = 'none';
+        }
+
+        function setApiKey() {
+            const keyInput = document.getElementById('apiKey');
+            apiKey = keyInput.value.trim();
+            
+            if (apiKey) {
+                // Store API key in localStorage (base64 encoded)
+                localStorage.setItem('deepseek-api-key', btoa(apiKey));
+                
+                isConnected = true;
+                showToast('API key set! Ready to chat', 'success');
+                document.getElementById('messageInput').disabled = false;
+                document.getElementById('sendButton').disabled = false;
+                keyInput.value = '';
+                
+                // Hide API setup section after successful setup
+                document.getElementById('apiSetup').style.display = 'none';
+                
+                // Show change API key button
+                document.getElementById('changeApiKeyBtn').style.display = 'block';
+                
+                // Don't auto-focus to prevent scrolling issues
+            } else {
+                alert('Please enter a valid API key');
+            }
+        }
+        
+        function changeApiKey() {
+            document.getElementById('apiSetup').style.display = 'flex';
+            document.getElementById('changeApiKeyBtn').style.display = 'none';
+            document.getElementById('apiKey').focus();
+        }
+        
+        function loadSavedApiKey() {
+            const savedKey = localStorage.getItem('deepseek-api-key');
+            if (savedKey) {
+                try {
+                    apiKey = atob(savedKey);
+                    if (apiKey) {
+                        isConnected = true;
+                        document.getElementById('status').innerHTML = '<span class="connected">✓ API key loaded! Ready to chat</span>';
+                        document.getElementById('messageInput').disabled = false;
+                        document.getElementById('sendButton').disabled = false;
+                        
+                        // Hide API setup section
+                        document.getElementById('apiSetup').style.display = 'none';
+                        
+                        // Show change API key button
+                        document.getElementById('changeApiKeyBtn').style.display = 'block';
+                    }
+                } catch (error) {
+                    console.error('Error loading saved API key:', error);
+                    localStorage.removeItem('deepseek-api-key');
+                }
+            }
+        }
+
+        function addMessage(content, isUser = false, isThinking = false, addToHistory = true, timestamp = null, imageData = null) {
+            const chatContainer = document.getElementById('chatContainer');
+            
+            if (isThinking) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'message thinking';
+                messageDiv.innerHTML = '🤔 Thinking...';
+                chatContainer.appendChild(messageDiv);
+                
+                // Auto-scroll for thinking indicator
+                setTimeout(() => {
+                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                }, 50);
+                return messageDiv;
+            } else {
+                const messageWrapper = document.createElement('div');
+                messageWrapper.className = `message-wrapper ${isUser ? 'user' : 'bot'}`;
+                
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${isUser ? 'user-message' : 'bot-message'}`;
+                
+                // Add image if present
+                let messageContent = '';
+                if (imageData) {
+                    messageContent += `<img src="${imageData}" alt="Uploaded image" class="message-image" onclick="openImageModal('${imageData}')">`;
+                }
+                messageContent += content.replace(/\n/g, '<br>');
+                messageDiv.innerHTML = messageContent;
+                
+                // Add timestamp
+                const timestampDiv = document.createElement('div');
+                timestampDiv.className = 'message-timestamp';
+                const time = timestamp ? new Date(timestamp) : new Date();
+                timestampDiv.textContent = time.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                
+                const actionsDiv = document.createElement('div');
+                actionsDiv.className = 'message-actions';
+                
+                // Copy button for all messages
+                const copyBtn = document.createElement('button');
+                copyBtn.className = 'action-btn copy-btn';
+                copyBtn.innerHTML = '📋';
+                copyBtn.title = 'Copy message';
+                copyBtn.onclick = () => copyMessage(content);
+                actionsDiv.appendChild(copyBtn);
+                
+                // Reply button for all messages
+                const replyBtn = document.createElement('button');
+                replyBtn.className = 'action-btn reply-btn';
+                replyBtn.innerHTML = '↩️';
+                replyBtn.title = 'Reply to this message';
+                replyBtn.onclick = () => replyToMessage(messageWrapper, content, isUser);
+                actionsDiv.appendChild(replyBtn);
+                
+                // Bookmark button for all messages
+                const bookmarkBtn = document.createElement('button');
+                bookmarkBtn.className = 'action-btn bookmark-btn';
+                bookmarkBtn.innerHTML = '⭐';
+                bookmarkBtn.title = 'Bookmark message';
+                bookmarkBtn.onclick = () => toggleBookmark(messageWrapper, content);
+                actionsDiv.appendChild(bookmarkBtn);
+                
+                // Export button for all messages
+                const exportBtn = document.createElement('button');
+                exportBtn.className = 'action-btn export-btn';
+                exportBtn.innerHTML = '💾';
+                exportBtn.title = 'Export message';
+                exportBtn.onclick = () => exportMessage(content, isUser);
+                actionsDiv.appendChild(exportBtn);
+                
+                // Delete button for all messages
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'action-btn delete-btn';
+                deleteBtn.innerHTML = '🗑️';
+                deleteBtn.title = 'Delete message';
+                deleteBtn.onclick = () => deleteMessage(messageWrapper);
+                actionsDiv.appendChild(deleteBtn);
+                
+                if (isUser) {
+                    // Edit button for user messages
+                    const editBtn = document.createElement('button');
+                    editBtn.className = 'action-btn edit-btn';
+                    editBtn.innerHTML = '✏️';
+                    editBtn.title = 'Edit message';
+                    editBtn.onclick = () => editMessage(messageDiv, content);
+                    actionsDiv.appendChild(editBtn);
+                } else {
+                    // Retry button for AI messages
+                    const retryBtn = document.createElement('button');
+                    retryBtn.className = 'action-btn retry-btn';
+                    retryBtn.innerHTML = '🔄';
+                    retryBtn.title = 'Regenerate response';
+                    retryBtn.onclick = () => regenerateResponse(messageWrapper);
+                    actionsDiv.appendChild(retryBtn);
+                }
+                
+                messageWrapper.appendChild(messageDiv);
+                messageWrapper.appendChild(timestampDiv);
+                messageWrapper.appendChild(actionsDiv);
+                chatContainer.appendChild(messageWrapper);
+                
+                // Add to conversation history (unless streaming)
+                if (addToHistory) {
+                    const historyEntry = {
+                        role: isUser ? 'user' : 'assistant',
+                        content: content,
+                        timestamp: Date.now()
+                    };
+                    
+                    // Add image data if present
+                    if (imageData) {
+                        historyEntry.imageData = imageData;
+                    }
+                    
+                    conversationHistory.push(historyEntry);
+                    
+                    // Increment focus mode message counter
+                    incrementFocusMessageCount();
+                }
+                
+                // Only auto-scroll if user is near bottom or if this is a new message from user
+                const isNearBottom = chatContainer.scrollTop + chatContainer.clientHeight >= chatContainer.scrollHeight - 150;
+                const shouldAutoScroll = isNearBottom || isUser;
+                
+                if (shouldAutoScroll) {
+                    setTimeout(() => {
+                        chatContainer.scrollTop = chatContainer.scrollHeight;
+                    }, 50);
+                }
+                return messageDiv;
+            }
+        }
+
+        async function sendMessage() {
+            const messageInput = document.getElementById('messageInput');
+            const message = messageInput.value.trim();
+            
+            if (!message || !isConnected || isThinking) return;
+            
+            // Handle reply context
+            let displayMessage = message;
+            if (replyContext) {
+                const replyText = replyContext.content.substring(0, 100) + (replyContext.content.length > 100 ? '...' : '');
+                displayMessage = `↩️ Replying to: "${replyText}"\n\n${message}`;
+            }
+            
+            // Add message with image if present
+            addMessage(displayMessage, true, false, true, null, currentImageBase64);
+            messageInput.value = '';
+            
+            // Store image for API call, then clear preview
+            const imageForAPI = currentImageBase64;
+            removeImage(); // Clear the preview after adding to chat
+            
+            // Clear reply context after sending
+            clearReplyContext();
+            
+            isThinking = true;
+            document.getElementById('sendButton').disabled = true;
+            const thinkingDiv = addMessage('', false, true);
+            
+            try {
+                // Build messages array with smart context system
+                const messages = [];
+                
+                const basePrompt = document.getElementById('basePrompt').value.trim();
+                const personalityPrompt = document.getElementById('personalityPrompt').value.trim();
+                const memoryContext = document.getElementById('memoryContext').value.trim();
+                
+                // Build system prompt
+                let systemPrompt = '';
+                if (basePrompt) {
+                    systemPrompt += basePrompt;
+                }
+                if (personalityPrompt) {
+                    if (systemPrompt) systemPrompt += '\n\n';
+                    systemPrompt += 'Personality and Communication Style: ' + personalityPrompt;
+                }
+                if (memoryContext) {
+                    if (systemPrompt) systemPrompt += '\n\n';
+                    systemPrompt += 'Important Context & Memory: ' + memoryContext;
+                }
+                
+                if (systemPrompt) {
+                    messages.push({
+                        role: 'system',
+                        content: systemPrompt
+                    });
+                }
+                
+                // Add only recent conversation history (last N messages)
+                const recentHistory = conversationHistory.slice(-contextLimit);
+                messages.push(...recentHistory);
+                
+                // Add current message (with image support)
+                const userMessage = {
+                    role: 'user',
+                    content: []
+                };
+
+                // Add text content
+                if (message) {
+                    userMessage.content.push({
+                        type: 'text',
+                        text: message
+                    });
+                }
+
+                // Add image if present
+                if (imageForAPI) {
+                    userMessage.content.push({
+                        type: 'image_url',
+                        image_url: {
+                            url: imageForAPI
+                        }
+                    });
+                }
+
+                // If no image, use simple text format for compatibility
+                if (!imageForAPI) {
+                    userMessage.content = message;
+                }
+
+                messages.push(userMessage);
+
+                const requestBody = {
+                    model: document.getElementById('model').value,
+                    messages: messages,
+                    max_tokens: parseInt(document.getElementById('maxTokens').value),
+                    temperature: parseFloat(document.getElementById('temperature').value),
+                    top_p: parseFloat(document.getElementById('topP').value),
+                    frequency_penalty: parseFloat(document.getElementById('freqPenalty').value),
+                    presence_penalty: parseFloat(document.getElementById('presPenalty').value),
+                    stream: true
+                };
+
+                const response = await fetch('https://api.deepseek.com/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${apiKey}`
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                thinkingDiv.remove();
+                
+                // Create new message div for streaming content (don't add to history yet)
+                const messageDiv = addMessage('<span class="streaming-cursor"></span>', false, false, false);
+                let fullContent = '';
+                let isFirstChunk = true;
+                
+                // Process streaming response
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    
+                    const chunk = decoder.decode(value);
+                    const lines = chunk.split('\n');
+                    
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const data = line.slice(6);
+                            if (data === '[DONE]') {
+                                // Remove streaming cursor and finalize message
+                                messageDiv.innerHTML = fullContent.replace(/\n/g, '<br>');
+                                
+                                // Update conversation history with complete message
+                                conversationHistory.push({
+                                    role: 'assistant',
+                                    content: fullContent,
+                                    timestamp: Date.now()
+                                });
+                                
+                                clearDraft(); // Clear draft after successful send
+                                saveCurrentConversation(); // Auto-save conversation
+                                return;
+                            }
+                            
+                            try {
+                                const json = JSON.parse(data);
+                                
+                                // Extract token usage if available
+                                if (json.usage && json.usage.total_tokens) {
+                                    updateTokenCounter(json.usage.total_tokens);
+                                }
+                                
+                                if (json.choices && json.choices[0] && json.choices[0].delta && json.choices[0].delta.content) {
+                                    const content = json.choices[0].delta.content;
+                                    fullContent += content;
+                                    
+                                    // Remove cursor on first content chunk
+                                    if (isFirstChunk) {
+                                        isFirstChunk = false;
+                                    }
+                                    
+                                    // Update message content incrementally with streaming cursor
+                                    messageDiv.innerHTML = fullContent.replace(/\n/g, '<br>') + '<span class="streaming-cursor"></span>';
+                                    
+                                    // Auto-scroll if user is near bottom
+                                    const chatContainer = document.getElementById('chatContainer');
+                                    const isNearBottom = chatContainer.scrollTop + chatContainer.clientHeight >= chatContainer.scrollHeight - 100;
+                                    if (isNearBottom) {
+                                        chatContainer.scrollTop = chatContainer.scrollHeight;
+                                    }
+                                }
+                            } catch (e) {
+                                // Skip invalid JSON lines
+                                continue;
+                            }
+                        }
+                    }
+                }
+                
+                // Remove streaming cursor and finalize message
+                messageDiv.innerHTML = fullContent.replace(/\n/g, '<br>');
+                
+                // Update conversation history with complete message
+                conversationHistory.push({
+                    role: 'assistant',
+                    content: fullContent,
+                    timestamp: Date.now()
+                });
+                
+                clearDraft(); // Clear draft after successful send
+                saveCurrentConversation(); // Auto-save conversation
+                
+            } catch (error) {
+                console.error('Error:', error);
+                if (thinkingDiv && thinkingDiv.parentNode) {
+                    thinkingDiv.remove();
+                }
+                // Remove incomplete streaming message if it exists
+                if (typeof messageDiv !== 'undefined' && messageDiv && messageDiv.parentNode) {
+                    messageDiv.parentNode.remove();
+                }
+                addMessage(`Error: ${error.message}. Please check your API key and try again.`, false);
+                showToast('Connection error', 'error');
+            }
+            
+            isThinking = false;
+            document.getElementById('sendButton').disabled = false;
+            // Don't auto-focus to prevent scrolling issues
+        }
+
+        // Configuration management
+        function saveConfig() {
+            try {
+                const config = {
+                    model: document.getElementById('model').value,
+                    temperature: document.getElementById('temperature').value,
+                    maxTokens: document.getElementById('maxTokens').value,
+                    topP: document.getElementById('topP').value,
+                    freqPenalty: document.getElementById('freqPenalty').value,
+                    presPenalty: document.getElementById('presPenalty').value,
+                    basePrompt: document.getElementById('basePrompt').value,
+                    personalityPrompt: document.getElementById('personalityPrompt').value,
+                    memoryContext: document.getElementById('memoryContext').value,
+                    timestamp: new Date().toISOString()
+                };
+                
+                const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `deepseek-config-${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                // Close settings panel after saving
+                document.getElementById('settingsPanel').style.display = 'none';
+                
+                // Show success message
+                showToast('Configuration saved!', 'success');
+                setTimeout(() => {
+                    if (isConnected) {
+                        document.getElementById('status').innerHTML = '<span class="connected">✓ API key set! Ready to chat</span>';
+                    }
+                }, 2000);
+            } catch (error) {
+                alert('Error saving configuration: ' + error.message);
+            }
+        }
+        
+        function loadConfig() {
+            document.getElementById('configFile').click();
+        }
+        
+        function handleConfigFile(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const config = JSON.parse(e.target.result);
+                        applyConfig(config);
+                        
+                        // Close settings panel after loading
+                        document.getElementById('settingsPanel').style.display = 'none';
+                        
+                        // Show success message
+                        showToast('Configuration loaded!', 'success');
+                        setTimeout(() => {
+                            if (isConnected) {
+                                document.getElementById('status').innerHTML = '<span class="connected">✓ API key set! Ready to chat</span>';
+                            }
+                        }, 2000);
+                    } catch (error) {
+                        alert('Error loading configuration: ' + error.message);
+                    }
+                };
+                reader.readAsText(file);
+            }
+        }
+        
+        function applyConfig(config) {
+            if (config.model) document.getElementById('model').value = config.model;
+            if (config.temperature) {
+                document.getElementById('temperature').value = config.temperature;
+                updateTempLabel();
+            }
+            if (config.maxTokens) document.getElementById('maxTokens').value = config.maxTokens;
+            if (config.topP) {
+                document.getElementById('topP').value = config.topP;
+                updateTopPLabel();
+            }
+            if (config.freqPenalty) {
+                document.getElementById('freqPenalty').value = config.freqPenalty;
+                updateFreqLabel();
+            }
+            if (config.presPenalty) {
+                document.getElementById('presPenalty').value = config.presPenalty;
+                updatePresLabel();
+            }
+            if (config.basePrompt) document.getElementById('basePrompt').value = config.basePrompt;
+            if (config.personalityPrompt) document.getElementById('personalityPrompt').value = config.personalityPrompt;
+            if (config.memoryContext) document.getElementById('memoryContext').value = config.memoryContext;
+        }
+        
+        function resetConfig() {
+            if (confirm('Reset all settings to default values?')) {
+                document.getElementById('model').value = 'deepseek-reasoner';
+                document.getElementById('temperature').value = '0.7';
+                document.getElementById('maxTokens').value = '4000';
+                document.getElementById('topP').value = '0.95';
+                document.getElementById('freqPenalty').value = '0';
+                document.getElementById('presPenalty').value = '0';
+                document.getElementById('basePrompt').value = 'You are a helpful AI assistant. Provide clear, accurate, and well-structured responses. Be concise but thorough in your explanations.';
+                document.getElementById('personalityPrompt').value = 'Be friendly and engaging while maintaining professionalism. Use a conversational tone and show enthusiasm for helping users solve problems.';
+                document.getElementById('memoryContext').value = '';
+                
+                updateTempLabel();
+                updateTopPLabel();
+                updateFreqLabel();
+                updatePresLabel();
+                
+                // Close settings panel after reset
+                document.getElementById('settingsPanel').style.display = 'none';
+                
+                // Show success message
+                showToast('Configuration reset!', 'success');
+                setTimeout(() => {
+                    if (isConnected) {
+                        document.getElementById('status').innerHTML = '<span class="connected">✓ API key set! Ready to chat</span>';
+                    }
+                }, 2000);
+            }
+        }
+        
+        // Auto-save configuration
+        function autoSaveConfig() {
+            const config = {
+                model: document.getElementById('model').value,
+                temperature: document.getElementById('temperature').value,
+                maxTokens: document.getElementById('maxTokens').value,
+                topP: document.getElementById('topP').value,
+                freqPenalty: document.getElementById('freqPenalty').value,
+                presPenalty: document.getElementById('presPenalty').value,
+                basePrompt: document.getElementById('basePrompt').value,
+                personalityPrompt: document.getElementById('personalityPrompt').value,
+                memoryContext: document.getElementById('memoryContext').value
+            };
+            localStorage.setItem('deepseek-config', JSON.stringify(config));
+        }
+        
+        function loadAutoSavedConfig() {
+            const saved = localStorage.getItem('deepseek-config');
+            if (saved) {
+                try {
+                    const config = JSON.parse(saved);
+                    applyConfig(config);
+                } catch (error) {
+                    console.error('Error loading auto-saved config:', error);
+                }
+            }
+        }
+        
+        // PWA Service Worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('data:text/javascript;base64,c2VsZi5hZGRFdmVudExpc3RlbmVyKCdpbnN0YWxsJywgZXZlbnQgPT4ge30pOyBzZWxmLmFkZEV2ZW50TGlzdGVuZXIoJ2FjdGl2YXRlJywgZXZlbnQgPT4ge30pOyBzZWxmLmFkZEV2ZW50TGlzdGVuZXIoJ2ZldGNoJywgZXZlbnQgPT4ge30pOw==')
+                .then(reg => console.log('Service Worker registered'))
+                .catch(err => console.log('Service Worker registration failed'));
+        }
+        
+        // Global keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            // Ctrl+Enter: Send message (global)
+            if (e.ctrlKey && e.key === 'Enter') {
+                e.preventDefault();
+                if (isConnected && !isThinking) {
+                    sendMessage();
+                }
+                return;
+            }
+
+            // Esc: Close panels/modals
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                // Close settings panel
+                const settingsPanel = document.getElementById('settingsPanel');
+                if (settingsPanel.style.display === 'block') {
+                    settingsPanel.style.display = 'none';
+                    return;
+                }
+                // Close sidebar on mobile
+                const sidebar = document.getElementById('sidebar');
+                if (sidebar.classList.contains('show')) {
+                    sidebar.classList.remove('show');
+                    return;
+                }
+                return;
+            }
+
+            // Alt+C: Copy last AI response
+            if (e.altKey && e.key === 'c') {
+                e.preventDefault();
+                const lastBotMessage = document.querySelector('.message-wrapper.bot:last-of-type .message');
+                if (lastBotMessage) {
+                    const content = lastBotMessage.textContent;
+                    navigator.clipboard.writeText(content).then(() => {
+                        showToast('Last AI response copied', 'success');
+                    }).catch(() => {
+                        showToast('Failed to copy', 'error');
+                    });
+                }
+                return;
+            }
+
+            // Alt+E: Edit last user message
+            if (e.altKey && e.key === 'e') {
+                e.preventDefault();
+                const lastUserMessage = document.querySelector('.message-wrapper.user:last-of-type .message');
+                if (lastUserMessage) {
+                    const content = lastUserMessage.textContent;
+                    editMessage(lastUserMessage, content);
+                }
+                return;
+            }
+
+            // F11 or Alt+F: Toggle focus mode
+            if (e.key === 'F11' || (e.altKey && e.key === 'f')) {
+                e.preventDefault();
+                toggleFocusMode();
+                return;
+            }
+
+            // Focus mode specific shortcuts
+            if (focusMode) {
+                // Alt+S: Show/hide stats
+                if (e.altKey && e.key === 's') {
+                    e.preventDefault();
+                    const focusStats = document.getElementById('focusStats');
+                    focusStats.style.display = focusStats.style.display === 'none' ? 'block' : 'none';
+                    return;
+                }
+                
+                // Alt+T: Show/hide timer
+                if (e.altKey && e.key === 't') {
+                    e.preventDefault();
+                    const focusTimer = document.getElementById('focusTimer');
+                    focusTimer.style.display = focusTimer.style.display === 'none' ? 'block' : 'none';
+                    return;
+                }
+            }
+        });
+
+        // Initialize
+        window.addEventListener('load', function() {
+            loadAutoSavedConfig();
+            loadSavedApiKey();
+            loadAutoSavedConversation();
+            loadDraft(); // Load saved draft on page refresh
+            startDraftSaving(); // Start auto-saving drafts
+            loadConversations(); // Load saved conversations
+            updateCustomTemplatesList(); // Load custom templates
+            loadFocusSettings(); // Load focus mode settings
+            
+            // Show share button on mobile
+            if (navigator.share) {
+                document.getElementById('shareBtn').style.display = 'block';
+            }
+            
+            // Auto-save on changes
+            ['model', 'temperature', 'maxTokens', 'topP', 'freqPenalty', 'presPenalty', 'basePrompt', 'personalityPrompt', 'memoryContext'].forEach(id => {
+                const element = document.getElementById(id);
+                if (element) {
+                    element.addEventListener('change', autoSaveConfig);
+                    element.addEventListener('input', autoSaveConfig);
+                }
+            });
+            
+            // Handle mobile keyboard
+            handleMobileKeyboard();
+        });
+
+        function handleMobileKeyboard() {
+            const messageInput = document.getElementById('messageInput');
+            const chatContainer = document.getElementById('chatContainer');
+            
+            // Only auto-scroll when input is focused, don't force scroll otherwise
+            messageInput.addEventListener('focus', function() {
+                setTimeout(() => {
+                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                }, 300);
+            });
+            
+            // Handle viewport height changes (keyboard open/close)
+            if (window.visualViewport) {
+                window.visualViewport.addEventListener('resize', () => {
+                    const keyboardHeight = window.innerHeight - window.visualViewport.height;
+                    if (keyboardHeight > 0) {
+                        // Keyboard is open - only adjust if input is focused
+                        if (document.activeElement === messageInput) {
+                            document.body.style.paddingBottom = keyboardHeight + 'px';
+                            setTimeout(() => {
+                                chatContainer.scrollTop = chatContainer.scrollHeight;
+                            }, 100);
+                        }
+                    } else {
+                        // Keyboard is closed
+                        document.body.style.paddingBottom = 'env(safe-area-inset-bottom)';
+                    }
+                });
+            }
+            
+            // Fix scroll behavior - ensure chat container can scroll freely
+            chatContainer.addEventListener('touchstart', function(e) {
+                // Allow normal scrolling
+                e.stopPropagation();
+            }, { passive: true });
+            
+            chatContainer.addEventListener('touchmove', function(e) {
+                // Allow normal scrolling
+                e.stopPropagation();
+            }, { passive: true });
+        }
+        
+        // Event listeners
+        document.getElementById('messageInput').addEventListener('keydown', function(e) {
+            // Enter (without Shift): Send message from input field
+            if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        document.getElementById('apiKey').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                setApiKey();
+            }
+        });
+
+        document.getElementById('messageInput').addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+            saveDraft(); // Save draft immediately on input
+        });
+    </script>
+
+    </div> <!-- End main-container -->
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Focus Mode Elements -->
+    <div class="focus-timer" id="focusTimer" style="display: none;">
+        <div id="timerDisplay">00:00</div>
+        <div style="font-size: 10px; color: #9A9AB0; text-align: center;">Focus Session</div>
+    </div>
+
+    <div class="focus-stats" id="focusStats">
+        <div style="font-weight: 600; margin-bottom: 4px;">Session Stats</div>
+        <div id="messageCount">Messages: 0</div>
+        <div id="sessionDuration">Duration: 00:00</div>
+    </div>
+
+    <!-- Image Modal -->
+    <div class="image-modal" id="imageModal" onclick="closeImageModal()">
+        <img id="modalImage" src="" alt="Full size image">
+    </div>
+</body>
+</html>
