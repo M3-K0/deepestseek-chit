@@ -18,10 +18,152 @@
             background: #1A1A2E;
             min-height: 100vh;
             display: flex;
-            flex-direction: column;
             margin: 0;
             padding: 0;
             padding-bottom: env(safe-area-inset-bottom);
+        }
+
+        .main-container {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-width: 0;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 250px;
+            background: #16213E;
+            border-right: 2px solid #2D2D44;
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.3s ease;
+            flex-shrink: 0;
+        }
+
+        .sidebar.collapsed {
+            transform: translateX(-100%);
+            width: 0;
+        }
+
+        .sidebar-header {
+            padding: 16px;
+            border-bottom: 1px solid #2D2D44;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .sidebar-title {
+            color: white;
+            font-weight: 600;
+            font-size: 16px;
+        }
+
+        .new-chat-btn {
+            background: #6C63FF;
+            border: none;
+            border-radius: 6px;
+            color: white;
+            padding: 8px 12px;
+            font-size: 12px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .new-chat-btn:hover {
+            background: #5A52E5;
+        }
+
+        .conversation-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+        }
+
+        .conversation-item {
+            padding: 12px;
+            margin-bottom: 4px;
+            border-radius: 6px;
+            cursor: pointer;
+            color: #9A9AB0;
+            font-size: 14px;
+            transition: all 0.2s;
+            word-wrap: break-word;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .conversation-item:hover {
+            background: #2D2D44;
+            color: white;
+        }
+
+        .conversation-item.active {
+            background: #6C63FF;
+            color: white;
+        }
+
+        .conversation-title {
+            flex: 1;
+            margin-right: 8px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .conversation-delete {
+            background: none;
+            border: none;
+            color: inherit;
+            cursor: pointer;
+            font-size: 16px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .conversation-item:hover .conversation-delete {
+            opacity: 0.7;
+        }
+
+        .conversation-delete:hover {
+            opacity: 1;
+        }
+
+        .message-timestamp {
+            font-size: 11px;
+            color: #6A6A7A;
+            margin-top: 4px;
+            text-align: right;
+            opacity: 0.7;
+            font-weight: 400;
+        }
+
+        .user-message .message-timestamp {
+            text-align: left;
+        }
+
+        .sidebar-toggle {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1001;
+            background: #3D3D5C;
+            border: 2px solid #4A4A6A;
+            border-radius: 8px;
+            width: 40px;
+            height: 40px;
+            color: white;
+            cursor: pointer;
+            font-size: 18px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .sidebar-toggle:hover {
+            background: #4A4A6A;
         }
 
         .header {
@@ -357,7 +499,7 @@
         }
 
         .input-container {
-            padding: 16px 20px;
+            padding: 16px 20px 40px 20px;
             background: #2D2D44;
             border-top: 2px solid #3D3D5C;
             flex-shrink: 0;
@@ -418,6 +560,38 @@
             cursor: not-allowed;
         }
 
+        .token-counter {
+            position: absolute;
+            bottom: -25px;
+            right: 60px;
+            font-size: 12px;
+            color: #9A9AB0;
+            font-weight: 500;
+            transition: color 0.3s ease;
+        }
+
+        .token-counter.warning {
+            color: #FF9800;
+        }
+
+        .token-counter.danger {
+            color: #f44336;
+        }
+
+        .keyboard-hint {
+            position: absolute;
+            bottom: -25px;
+            left: 0;
+            font-size: 10px;
+            color: #6A6A7A;
+            opacity: 0.5;
+            font-weight: 400;
+        }
+
+        .input-wrapper {
+            position: relative;
+        }
+
         .status {
             padding: 8px 20px;
             text-align: center;
@@ -450,7 +624,113 @@
             border-color: #D32F2F;
         }
 
+        /* Toast Container */
+        .toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-width: 350px;
+            pointer-events: none;
+        }
+
+        .toast {
+            background: #2D2D44;
+            border: 2px solid #4A4A6A;
+            border-radius: 8px;
+            padding: 12px 16px;
+            color: white;
+            font-size: 14px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            transform: translateX(100%);
+            transition: transform 0.3s ease, opacity 0.3s ease;
+            pointer-events: auto;
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .toast.show {
+            transform: translateX(0);
+            opacity: 1;
+        }
+
+        .toast.success {
+            border-color: #4CAF50;
+            background: #1B2A1B;
+            color: #A5D6A7;
+        }
+
+        .toast.error {
+            border-color: #f44336;
+            background: #2A1B1B;
+            color: #FFCDD2;
+        }
+
+        .toast.info {
+            border-color: #2196F3;
+            background: #1B1F2A;
+            color: #BBDEFB;
+        }
+
+        .toast-icon {
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+
+        .toast-message {
+            flex: 1;
+        }
+
+        /* Typing animation */
+        .typing-indicator {
+            display: inline-block;
+            opacity: 0.6;
+            animation: typing 1.4s infinite;
+        }
+
+        @keyframes typing {
+            0%, 60% { opacity: 0.6; }
+            30% { opacity: 1; }
+        }
+
+        .streaming-cursor {
+            display: inline-block;
+            width: 2px;
+            height: 1em;
+            background: #6C63FF;
+            margin-left: 2px;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+
         @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                height: 100vh;
+                z-index: 1000;
+                transform: translateX(-100%);
+                width: 280px;
+            }
+
+            .sidebar.show {
+                transform: translateX(0);
+            }
+
+            .sidebar-toggle {
+                display: flex;
+            }
+
             .settings-grid {
                 grid-template-columns: 1fr;
             }
@@ -468,7 +748,7 @@
             }
             
             .input-container {
-                padding: 16px;
+                padding: 16px 16px 35px 16px;
             }
             
             .header {
@@ -500,11 +780,55 @@
                 font-size: 11px;
                 padding: 8px 12px;
             }
+
+            .toast-container {
+                bottom: 10px;
+                right: 10px;
+                left: 10px;
+                max-width: none;
+            }
+
+            .toast {
+                font-size: 13px;
+                padding: 10px 14px;
+            }
+
+            .token-counter {
+                bottom: -20px;
+                right: 55px;
+                font-size: 11px;
+            }
+
+            .keyboard-hint {
+                font-size: 9px;
+                bottom: -20px;
+                left: 0;
+                max-width: 200px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="header">
+    <!-- Mobile sidebar toggle -->
+    <button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
+
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <span class="sidebar-title">Conversations</span>
+            <button class="new-chat-btn" onclick="newConversation()">+ New</button>
+        </div>
+        <div class="conversation-list" id="conversationList">
+            <!-- Conversations will be populated here -->
+        </div>
+    </div>
+
+    <!-- Main container -->
+    <div class="main-container">
+        <div class="header">
         <button class="settings-btn" onclick="toggleSettings()">⚙️</button>
         <h1>🤖 DeepSeek R1 Custom</h1>
         <div style="display: flex; gap: 8px;">
@@ -650,6 +974,8 @@
             <button class="send-button" id="sendButton" onclick="sendMessage()" disabled>
                 ➤
             </button>
+            <div class="token-counter" id="tokenCounter">0/8000 tokens</div>
+            <div class="keyboard-hint">Ctrl+Enter to send • Esc to close • Alt+C copy • Alt+E edit</div>
         </div>
     </div>
 
@@ -659,6 +985,254 @@
         let isThinking = false;
         let conversationHistory = [];
         let currentConversationId = null;
+        let draftSaveInterval = null;
+        let conversations = [];
+        let maxConversations = 20;
+        let totalTokens = 0;
+
+        // Toast notification system
+        function showToast(message, type = 'info', duration = 4000) {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            
+            // Set icon based on type
+            const icons = {
+                success: '✓',
+                error: '✗', 
+                info: 'ℹ'
+            };
+            
+            toast.innerHTML = `
+                <span class="toast-icon">${icons[type] || icons.info}</span>
+                <span class="toast-message">${message}</span>
+            `;
+            
+            container.appendChild(toast);
+            
+            // Trigger animation
+            setTimeout(() => toast.classList.add('show'), 100);
+            
+            // Auto-dismiss
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => {
+                    if (toast.parentNode) {
+                        container.removeChild(toast);
+                    }
+                }, 300);
+            }, duration);
+        }
+
+        // Draft persistence system
+        function saveDraft() {
+            const messageInput = document.getElementById('messageInput');
+            if (!messageInput) {
+                console.warn('Message input not found for draft saving');
+                return;
+            }
+            
+            const draft = messageInput.value.trim();
+            
+            if (draft) {
+                localStorage.setItem('deepseek-draft', draft);
+                console.log('Draft saved:', draft.substring(0, 50) + '...');
+            } else {
+                localStorage.removeItem('deepseek-draft');
+                console.log('Empty draft cleared');
+            }
+        }
+
+        function loadDraft() {
+            const savedDraft = localStorage.getItem('deepseek-draft');
+            if (savedDraft) {
+                const messageInput = document.getElementById('messageInput');
+                if (!messageInput) {
+                    console.warn('Message input not found for draft loading');
+                    return;
+                }
+                
+                messageInput.value = savedDraft;
+                // Trigger resize for mobile
+                messageInput.style.height = 'auto';
+                messageInput.style.height = Math.min(messageInput.scrollHeight, 120) + 'px';
+                console.log('Draft loaded:', savedDraft.substring(0, 50) + '...');
+            }
+        }
+
+        function clearDraft() {
+            localStorage.removeItem('deepseek-draft');
+            console.log('Draft cleared');
+        }
+
+        function startDraftSaving() {
+            // Save draft every 2 seconds
+            draftSaveInterval = setInterval(saveDraft, 2000);
+            console.log('Draft auto-save started');
+        }
+
+        function stopDraftSaving() {
+            if (draftSaveInterval) {
+                clearInterval(draftSaveInterval);
+                draftSaveInterval = null;
+                console.log('Draft auto-save stopped');
+            }
+        }
+
+        // Conversation management
+        function generateConversationTitle(firstMessage) {
+            // Generate title from first 50 characters of first message
+            return firstMessage.length > 50 ? firstMessage.substring(0, 50) + '...' : firstMessage;
+        }
+
+        function saveCurrentConversation() {
+            if (conversationHistory.length === 0) return;
+
+            const conversation = {
+                id: currentConversationId || Date.now().toString(),
+                title: generateConversationTitle(conversationHistory[0].content),
+                messages: [...conversationHistory],
+                timestamp: Date.now()
+            };
+
+            // Update existing or add new
+            const existingIndex = conversations.findIndex(c => c.id === conversation.id);
+            if (existingIndex >= 0) {
+                conversations[existingIndex] = conversation;
+            } else {
+                conversations.unshift(conversation);
+                // Auto-prune to max conversations
+                if (conversations.length > maxConversations) {
+                    conversations = conversations.slice(0, maxConversations);
+                }
+            }
+
+            currentConversationId = conversation.id;
+            localStorage.setItem('deepseek-conversations', JSON.stringify(conversations));
+            updateConversationList();
+        }
+
+        function loadConversations() {
+            const saved = localStorage.getItem('deepseek-conversations');
+            if (saved) {
+                try {
+                    conversations = JSON.parse(saved);
+                    updateConversationList();
+                } catch (error) {
+                    console.error('Error loading conversations:', error);
+                    conversations = [];
+                }
+            }
+        }
+
+        function updateConversationList() {
+            const list = document.getElementById('conversationList');
+            list.innerHTML = '';
+
+            conversations.forEach(conv => {
+                const item = document.createElement('div');
+                item.className = `conversation-item ${conv.id === currentConversationId ? 'active' : ''}`;
+                item.innerHTML = `
+                    <span class="conversation-title">${conv.title}</span>
+                    <button class="conversation-delete" onclick="deleteConversation('${conv.id}')" title="Delete">🗑️</button>
+                `;
+                item.onclick = (e) => {
+                    if (e.target.classList.contains('conversation-delete')) return;
+                    loadConversation(conv.id);
+                };
+                list.appendChild(item);
+            });
+        }
+
+        function newConversation() {
+            // Save current conversation if it has messages
+            if (conversationHistory.length > 0) {
+                saveCurrentConversation();
+            }
+
+            // Clear current conversation
+            conversationHistory = [];
+            currentConversationId = null;
+            document.getElementById('chatContainer').innerHTML = '';
+            resetTokenCounter(); // Reset token counter for new conversation
+            
+            // Add welcome message
+            const welcomeMsg = "👋 Hi! I'm DeepSeek R1 with full customization. Set your API key, configure your settings, and let's chat!";
+            addMessage(welcomeMsg, false);
+            
+            updateConversationList();
+            showToast('New conversation started', 'info');
+        }
+
+        function loadConversation(conversationId) {
+            const conversation = conversations.find(c => c.id === conversationId);
+            if (!conversation) return;
+
+            // Save current conversation first
+            if (conversationHistory.length > 0 && currentConversationId !== conversationId) {
+                saveCurrentConversation();
+            }
+
+            // Load selected conversation
+            currentConversationId = conversationId;
+            conversationHistory = [...conversation.messages];
+            resetTokenCounter(); // Reset token counter for loaded conversation
+            
+            // Clear and rebuild chat display
+            const chatContainer = document.getElementById('chatContainer');
+            chatContainer.innerHTML = '';
+            
+            conversationHistory.forEach(msg => {
+                addMessage(msg.content, msg.role === 'user', false, false, msg.timestamp);
+            });
+
+            updateConversationList();
+            showToast('Conversation loaded', 'success');
+        }
+
+        function deleteConversation(conversationId) {
+            if (!confirm('Delete this conversation?')) return;
+
+            conversations = conversations.filter(c => c.id !== conversationId);
+            localStorage.setItem('deepseek-conversations', JSON.stringify(conversations));
+
+            // If we deleted the current conversation, start a new one
+            if (currentConversationId === conversationId) {
+                newConversation();
+            } else {
+                updateConversationList();
+            }
+
+            showToast('Conversation deleted', 'info');
+        }
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('show');
+        }
+
+        // Token counter management
+        function updateTokenCounter(usedTokens, maxTokens = 8000) {
+            totalTokens = usedTokens;
+            const counter = document.getElementById('tokenCounter');
+            const percentage = (usedTokens / maxTokens) * 100;
+            
+            counter.textContent = `${usedTokens}/${maxTokens} tokens`;
+            
+            // Update color based on usage
+            counter.className = 'token-counter';
+            if (percentage >= 90) {
+                counter.classList.add('danger');
+            } else if (percentage >= 75) {
+                counter.classList.add('warning');
+            }
+        }
+
+        function resetTokenCounter() {
+            totalTokens = 0;
+            updateTokenCounter(0);
+        }
+
         let contextLimit = 10; // Only send last 10 messages to API
 
         const presets = {
@@ -1128,7 +1702,7 @@
                 localStorage.setItem('deepseek-api-key', btoa(apiKey));
                 
                 isConnected = true;
-                document.getElementById('status').innerHTML = '<span class="connected">✓ API key set! Ready to chat</span>';
+                showToast('API key set! Ready to chat', 'success');
                 document.getElementById('messageInput').disabled = false;
                 document.getElementById('sendButton').disabled = false;
                 keyInput.value = '';
@@ -1175,7 +1749,7 @@
             }
         }
 
-        function addMessage(content, isUser = false, isThinking = false) {
+        function addMessage(content, isUser = false, isThinking = false, addToHistory = true, timestamp = null) {
             const chatContainer = document.getElementById('chatContainer');
             
             if (isThinking) {
@@ -1196,6 +1770,12 @@
                 const messageDiv = document.createElement('div');
                 messageDiv.className = `message ${isUser ? 'user-message' : 'bot-message'}`;
                 messageDiv.innerHTML = content.replace(/\n/g, '<br>');
+                
+                // Add timestamp
+                const timestampDiv = document.createElement('div');
+                timestampDiv.className = 'message-timestamp';
+                const time = timestamp ? new Date(timestamp) : new Date();
+                timestampDiv.textContent = time.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
                 
                 const actionsDiv = document.createElement('div');
                 actionsDiv.className = 'message-actions';
@@ -1235,14 +1815,18 @@
                 }
                 
                 messageWrapper.appendChild(messageDiv);
+                messageWrapper.appendChild(timestampDiv);
                 messageWrapper.appendChild(actionsDiv);
                 chatContainer.appendChild(messageWrapper);
                 
-                // Add to conversation history
-                conversationHistory.push({
-                    role: isUser ? 'user' : 'assistant',
-                    content: content
-                });
+                // Add to conversation history (unless streaming)
+                if (addToHistory) {
+                    conversationHistory.push({
+                        role: isUser ? 'user' : 'assistant',
+                        content: content,
+                        timestamp: Date.now()
+                    });
+                }
                 
                 // Only auto-scroll if user is near bottom or if this is a new message from user
                 const isNearBottom = chatContainer.scrollTop + chatContainer.clientHeight >= chatContainer.scrollHeight - 150;
@@ -1316,7 +1900,8 @@
                     temperature: parseFloat(document.getElementById('temperature').value),
                     top_p: parseFloat(document.getElementById('topP').value),
                     frequency_penalty: parseFloat(document.getElementById('freqPenalty').value),
-                    presence_penalty: parseFloat(document.getElementById('presPenalty').value)
+                    presence_penalty: parseFloat(document.getElementById('presPenalty').value),
+                    stream: true
                 };
 
                 const response = await fetch('https://api.deepseek.com/chat/completions', {
@@ -1332,21 +1917,102 @@
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
 
-                const data = await response.json();
                 thinkingDiv.remove();
                 
-                if (data.choices && data.choices[0] && data.choices[0].message) {
-                    const content = data.choices[0].message.content;
-                    addMessage(content, false);
-                } else {
-                    addMessage('Sorry, I received an unexpected response format.', false);
+                // Create new message div for streaming content (don't add to history yet)
+                const messageDiv = addMessage('<span class="streaming-cursor"></span>', false, false, false);
+                let fullContent = '';
+                let isFirstChunk = true;
+                
+                // Process streaming response
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    
+                    const chunk = decoder.decode(value);
+                    const lines = chunk.split('\n');
+                    
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const data = line.slice(6);
+                            if (data === '[DONE]') {
+                                // Remove streaming cursor and finalize message
+                                messageDiv.innerHTML = fullContent.replace(/\n/g, '<br>');
+                                
+                                // Update conversation history with complete message
+                                conversationHistory.push({
+                                    role: 'assistant',
+                                    content: fullContent,
+                                    timestamp: Date.now()
+                                });
+                                
+                                clearDraft(); // Clear draft after successful send
+                                saveCurrentConversation(); // Auto-save conversation
+                                return;
+                            }
+                            
+                            try {
+                                const json = JSON.parse(data);
+                                
+                                // Extract token usage if available
+                                if (json.usage && json.usage.total_tokens) {
+                                    updateTokenCounter(json.usage.total_tokens);
+                                }
+                                
+                                if (json.choices && json.choices[0] && json.choices[0].delta && json.choices[0].delta.content) {
+                                    const content = json.choices[0].delta.content;
+                                    fullContent += content;
+                                    
+                                    // Remove cursor on first content chunk
+                                    if (isFirstChunk) {
+                                        isFirstChunk = false;
+                                    }
+                                    
+                                    // Update message content incrementally with streaming cursor
+                                    messageDiv.innerHTML = fullContent.replace(/\n/g, '<br>') + '<span class="streaming-cursor"></span>';
+                                    
+                                    // Auto-scroll if user is near bottom
+                                    const chatContainer = document.getElementById('chatContainer');
+                                    const isNearBottom = chatContainer.scrollTop + chatContainer.clientHeight >= chatContainer.scrollHeight - 100;
+                                    if (isNearBottom) {
+                                        chatContainer.scrollTop = chatContainer.scrollHeight;
+                                    }
+                                }
+                            } catch (e) {
+                                // Skip invalid JSON lines
+                                continue;
+                            }
+                        }
+                    }
                 }
+                
+                // Remove streaming cursor and finalize message
+                messageDiv.innerHTML = fullContent.replace(/\n/g, '<br>');
+                
+                // Update conversation history with complete message
+                conversationHistory.push({
+                    role: 'assistant',
+                    content: fullContent,
+                    timestamp: Date.now()
+                });
+                
+                clearDraft(); // Clear draft after successful send
+                saveCurrentConversation(); // Auto-save conversation
                 
             } catch (error) {
                 console.error('Error:', error);
-                thinkingDiv.remove();
+                if (thinkingDiv && thinkingDiv.parentNode) {
+                    thinkingDiv.remove();
+                }
+                // Remove incomplete streaming message if it exists
+                if (typeof messageDiv !== 'undefined' && messageDiv && messageDiv.parentNode) {
+                    messageDiv.parentNode.remove();
+                }
                 addMessage(`Error: ${error.message}. Please check your API key and try again.`, false);
-                document.getElementById('status').innerHTML = '<span class="error">❌ Connection error</span>';
+                showToast('Connection error', 'error');
             }
             
             isThinking = false;
@@ -1384,7 +2050,7 @@
                 document.getElementById('settingsPanel').style.display = 'none';
                 
                 // Show success message
-                document.getElementById('status').innerHTML = '<span class="connected">✓ Configuration saved!</span>';
+                showToast('Configuration saved!', 'success');
                 setTimeout(() => {
                     if (isConnected) {
                         document.getElementById('status').innerHTML = '<span class="connected">✓ API key set! Ready to chat</span>';
@@ -1412,7 +2078,7 @@
                         document.getElementById('settingsPanel').style.display = 'none';
                         
                         // Show success message
-                        document.getElementById('status').innerHTML = '<span class="connected">✓ Configuration loaded!</span>';
+                        showToast('Configuration loaded!', 'success');
                         setTimeout(() => {
                             if (isConnected) {
                                 document.getElementById('status').innerHTML = '<span class="connected">✓ API key set! Ready to chat</span>';
@@ -1471,7 +2137,7 @@
                 document.getElementById('settingsPanel').style.display = 'none';
                 
                 // Show success message
-                document.getElementById('status').innerHTML = '<span class="connected">✓ Configuration reset!</span>';
+                showToast('Configuration reset!', 'success');
                 setTimeout(() => {
                     if (isConnected) {
                         document.getElementById('status').innerHTML = '<span class="connected">✓ API key set! Ready to chat</span>';
@@ -1515,11 +2181,70 @@
                 .catch(err => console.log('Service Worker registration failed'));
         }
         
+        // Global keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            // Ctrl+Enter: Send message (global)
+            if (e.ctrlKey && e.key === 'Enter') {
+                e.preventDefault();
+                if (isConnected && !isThinking) {
+                    sendMessage();
+                }
+                return;
+            }
+
+            // Esc: Close panels/modals
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                // Close settings panel
+                const settingsPanel = document.getElementById('settingsPanel');
+                if (settingsPanel.style.display === 'block') {
+                    settingsPanel.style.display = 'none';
+                    return;
+                }
+                // Close sidebar on mobile
+                const sidebar = document.getElementById('sidebar');
+                if (sidebar.classList.contains('show')) {
+                    sidebar.classList.remove('show');
+                    return;
+                }
+                return;
+            }
+
+            // Alt+C: Copy last AI response
+            if (e.altKey && e.key === 'c') {
+                e.preventDefault();
+                const lastBotMessage = document.querySelector('.message-wrapper.bot:last-of-type .message');
+                if (lastBotMessage) {
+                    const content = lastBotMessage.textContent;
+                    navigator.clipboard.writeText(content).then(() => {
+                        showToast('Last AI response copied', 'success');
+                    }).catch(() => {
+                        showToast('Failed to copy', 'error');
+                    });
+                }
+                return;
+            }
+
+            // Alt+E: Edit last user message
+            if (e.altKey && e.key === 'e') {
+                e.preventDefault();
+                const lastUserMessage = document.querySelector('.message-wrapper.user:last-of-type .message');
+                if (lastUserMessage) {
+                    const content = lastUserMessage.textContent;
+                    editMessage(lastUserMessage, content);
+                }
+                return;
+            }
+        });
+
         // Initialize
         window.addEventListener('load', function() {
             loadAutoSavedConfig();
             loadSavedApiKey();
             loadAutoSavedConversation();
+            loadDraft(); // Load saved draft on page refresh
+            startDraftSaving(); // Start auto-saving drafts
+            loadConversations(); // Load saved conversations
             
             // Show share button on mobile
             if (navigator.share) {
@@ -1583,7 +2308,8 @@
         
         // Event listeners
         document.getElementById('messageInput').addEventListener('keydown', function(e) {
-            if (e.key === 'Enter' && !e.shiftKey) {
+            // Enter (without Shift): Send message from input field
+            if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey) {
                 e.preventDefault();
                 sendMessage();
             }
@@ -1599,7 +2325,13 @@
         document.getElementById('messageInput').addEventListener('input', function() {
             this.style.height = 'auto';
             this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+            saveDraft(); // Save draft immediately on input
         });
     </script>
+
+    </div> <!-- End main-container -->
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
 </body>
 </html>
